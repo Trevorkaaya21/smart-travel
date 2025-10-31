@@ -23,8 +23,12 @@ const DEFAULT_GEMINI_MODELS = [
   'models/gemini-flash-latest',
   'models/gemini-pro-latest'
 ]
-const GEMINI_MODEL_CANDIDATES = Array.from(
-  new Set([PRIMARY_GEMINI_MODEL, ...DEFAULT_GEMINI_MODELS].filter(Boolean))
+const GEMINI_MODEL_CANDIDATES: string[] = Array.from(
+  new Set(
+    [PRIMARY_GEMINI_MODEL, ...DEFAULT_GEMINI_MODELS].filter(
+      (model): model is string => typeof model === 'string' && model.length > 0
+    )
+  )
 )
 let cachedModelList: string[] | null = null
 let cachedModelListFetchedAt = 0
