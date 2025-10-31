@@ -163,8 +163,11 @@ export default function AiSearch() {
       const data = await r.json()
       const results = Array.isArray(data.items) ? data.items : []
       if (cacheRef.current.size > 8) {
-        const oldestKey = cacheRef.current.keys().next().value
-        cacheRef.current.delete(oldestKey)
+        const iterator = cacheRef.current.keys().next()
+        const oldestKey = iterator.value
+        if (typeof oldestKey === 'string') {
+          cacheRef.current.delete(oldestKey)
+        }
       }
       cacheRef.current.set(normalized, results)
       startTransition(() => setItems(results))
