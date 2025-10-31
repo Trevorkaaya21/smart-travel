@@ -1,4 +1,4 @@
-import { supa } from './supabase'
+import { supa } from './supabase.js'
 
 export async function listFavorites(email: string) {
   const { data, error } = await supa

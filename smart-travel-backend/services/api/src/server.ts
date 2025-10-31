@@ -1,5 +1,5 @@
 // services/api/src/server.ts
-import './preload-env'
+import './preload-env.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -7,7 +7,7 @@ import compress from '@fastify/compress'
 import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import { z } from 'zod'
-import { supa } from './supabase'
+import { supa } from './supabase.js'
 import { customAlphabet } from 'nanoid'
 import { randomUUID } from 'node:crypto'
 

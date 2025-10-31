@@ -1,4 +1,4 @@
-import { supa } from './supabase'
+import { supa } from './supabase.js'
 
 export async function getOrCreateDefaultTrip(ownerEmail: string) {
   const email = ownerEmail.toLowerCase()
@@ -14,4 +14,3 @@ export async function getOrCreateDefaultTrip(ownerEmail: string) {
   if (e2) throw e2
   return data
 }
-

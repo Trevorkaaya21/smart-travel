@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import './preload-env'
+import './preload-env.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!
