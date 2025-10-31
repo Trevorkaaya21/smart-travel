@@ -10,7 +10,12 @@ npm-debug.log
 pnpm-debug.log
 Dockerfile
 Dockerfile.*
-README.md
 .env
 .env.*
 supabase/.temp
+
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+!smart-travel-backend/services/api/package.json
+!smart-travel-frontend/apps/web/package.json

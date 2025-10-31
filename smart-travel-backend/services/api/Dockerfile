@@ -4,7 +4,6 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 
-# Prime workspace metadata for deterministic installs
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY smart-travel-backend/services/api/package.json smart-travel-backend/services/api/package.json
 
