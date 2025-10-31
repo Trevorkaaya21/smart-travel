@@ -7,8 +7,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ${{ github.repository_owner }}/smart-travel-api
-  WEB_IMAGE: ${{ github.repository_owner }}/smart-travel-web
+  OWNER_SLUG: ${{ github.repository_owner && github.repository_owner != '' && toLower(github.repository_owner) || '' }}
+  REPO_NAME: ${{ github.event.repository.name }}
+  API_IMAGE: ${{ github.repository_owner && toLower(format('{0}/smart-travel-api', github.repository_owner)) }}
+  WEB_IMAGE: ${{ github.repository_owner && toLower(format('{0}/smart-travel-web', github.repository_owner)) }}
 
 jobs:
   build:
@@ -30,19 +32,23 @@ jobs:
 
       - name: Build API image
         run: |
+          IMAGE=${REGISTRY}/$(echo "${API_IMAGE}" | tr '[:upper:]' '[:lower:]')
           docker build \
             -f smart-travel-backend/services/api/Dockerfile \
-            -t $REGISTRY/$API_IMAGE:${GITHUB_SHA} \
+            -t ${IMAGE}:${GITHUB_SHA} \
             .
+          echo "API_IMAGE_TAG=${IMAGE}:${GITHUB_SHA}" >> $GITHUB_ENV
 
       - name: Build web image
         run: |
+          IMAGE=${REGISTRY}/$(echo "${WEB_IMAGE}" | tr '[:upper:]' '[:lower:]')
           docker build \
             -f smart-travel-frontend/apps/web/Dockerfile \
-            -t $REGISTRY/$WEB_IMAGE:${GITHUB_SHA} \
+            -t ${IMAGE}:${GITHUB_SHA} \
             .
+          echo "WEB_IMAGE_TAG=${IMAGE}:${GITHUB_SHA}" >> $GITHUB_ENV
 
       - name: Push images
         run: |
-          docker push $REGISTRY/$API_IMAGE:${GITHUB_SHA}
-          docker push $REGISTRY/$WEB_IMAGE:${GITHUB_SHA}
+          docker push $API_IMAGE_TAG
+          docker push $WEB_IMAGE_TAG
