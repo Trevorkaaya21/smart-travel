@@ -1,0 +1,5 @@
+packages:
+  - "smart-travel-frontend/apps/*"
+  - "smart-travel-frontend/packages/*"
+  - "smart-travel-backend/services/*"
+  - "smart-travel-mobile"

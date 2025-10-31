@@ -1,0 +1,16 @@
+.git
+.turbo
+node_modules
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+npm-debug.log
+pnpm-debug.log
+Dockerfile
+Dockerfile.*
+README.md
+.env
+.env.*
+supabase/.temp

@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-python.python",
+    "ms-azuretools.vscode-docker",
+    "eamodio.gitlens",
+    "GraphQL.vscode-graphql",
+    "prisma.prisma",
+    "rangav.vscode-thunder-client"
+  ]
+}
