@@ -81,7 +81,7 @@ export default function FavoriteList() {
       {favsQ.isLoading && (
         <div className="card">Loading favorites…</div>
       )}
-      {!favsQ.isLoading && ids.length === 0 && (
+      {!favsQ.isLoading && favorites.length === 0 && (
         <div className="card">No favorites yet.</div>
       )}
       <div className="grid gap-2">
