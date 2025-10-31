@@ -7,10 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  OWNER_SLUG: ${{ github.repository_owner && github.repository_owner != '' && toLower(github.repository_owner) || '' }}
-  REPO_NAME: ${{ github.event.repository.name }}
-  API_IMAGE: ${{ github.repository_owner && toLower(format('{0}/smart-travel-api', github.repository_owner)) }}
-  WEB_IMAGE: ${{ github.repository_owner && toLower(format('{0}/smart-travel-web', github.repository_owner)) }}
+  OWNER_SLUG: ${{ github.repository_owner || '' }}
 
 jobs:
   build:
@@ -32,7 +29,7 @@ jobs:
 
       - name: Build API image
         run: |
-          IMAGE=${REGISTRY}/$(echo "${API_IMAGE}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=${REGISTRY}/$(echo "${OWNER_SLUG}/smart-travel-api" | tr '[:upper:]' '[:lower:]')
           docker build \
             -f smart-travel-backend/services/api/Dockerfile \
             -t ${IMAGE}:${GITHUB_SHA} \
@@ -41,7 +38,7 @@ jobs:
 
       - name: Build web image
         run: |
-          IMAGE=${REGISTRY}/$(echo "${WEB_IMAGE}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=${REGISTRY}/$(echo "${OWNER_SLUG}/smart-travel-web" | tr '[:upper:]' '[:lower:]')
           docker build \
             -f smart-travel-frontend/apps/web/Dockerfile \
             -t ${IMAGE}:${GITHUB_SHA} \
