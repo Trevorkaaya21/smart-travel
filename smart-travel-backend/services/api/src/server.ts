@@ -34,6 +34,7 @@ const GOOGLE_PLACES_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
   ''
 const DIARY_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'diary-photos'
+type TripAccessRole = 'owner' | 'collaborator'
 const MIME_EXTENSION: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -42,11 +43,16 @@ const MIME_EXTENSION: Record<string, string> = {
   'image/heic': 'heic',
   'image/heif': 'heif'
 }
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
 
 function ensureEmail(h: Record<string, any> | undefined) {
   const email = (h?.['x-user-email'] as string | undefined)?.toLowerCase?.()
   if (!email) throw Object.assign(new Error('auth_required'), { statusCode: 401 })
   return email
+}
+
+function normalizeEmail(value?: string | null) {
+  return value?.trim().toLowerCase() ?? ''
 }
 
 async function aiRefine(q: string) {
@@ -194,6 +200,82 @@ function publicDiaryPhotoUrl(path: string | null | undefined) {
   if (!path) return null
   const { data } = supa.storage.from(DIARY_BUCKET).getPublicUrl(path)
   return data.publicUrl || null
+}
+
+type TripAccessResult = {
+  trip: { id: string; name?: string | null; owner_email: string | null; created_at?: string | null }
+  role: TripAccessRole
+}
+
+async function ensureTripAccess(tripId: string, email: string): Promise<TripAccessResult> {
+  const normalized = normalizeEmail(email)
+  const { data: trip, error: tripError } = await supa
+    .from('trips')
+    .select('id, name, owner_email, created_at')
+    .eq('id', tripId)
+    .single()
+
+  if (tripError || !trip) throw Object.assign(new Error('not_found'), { statusCode: 404 })
+
+  const ownerEmail = normalizeEmail(trip.owner_email)
+  if (ownerEmail && ownerEmail === normalized) {
+    return { trip, role: 'owner' }
+  }
+
+  const { data: collaborator, error: collError } = await supa
+    .from('trip_collaborators')
+    .select('id, status')
+    .eq('trip_id', tripId)
+    .eq('email', normalized)
+    .eq('status', 'accepted')
+    .maybeSingle()
+
+  if (collError) throw collError
+  if (collaborator) {
+    return { trip, role: 'collaborator' }
+  }
+
+  throw Object.assign(new Error('forbidden'), { statusCode: 403 })
+}
+
+type CollaboratorPayload = {
+  email: string
+  role: TripAccessRole
+  invited_by: string | null
+  status: string
+  created_at: string
+}
+
+async function listCollaborators(tripId: string, trip: { owner_email: string | null; created_at?: string | null }) {
+  const ownerEmail = normalizeEmail(trip.owner_email)
+  const ownerEntry: CollaboratorPayload | null = ownerEmail
+    ? {
+        email: ownerEmail,
+        role: 'owner',
+        invited_by: ownerEmail,
+        status: 'owner',
+        created_at: trip.created_at ?? new Date().toISOString(),
+      }
+    : null
+
+  const { data, error } = await supa
+    .from('trip_collaborators')
+    .select('email, invited_by, status, created_at')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  const collaborators =
+    data?.map((row: any) => ({
+      email: normalizeEmail(row.email),
+      role: 'collaborator' as TripAccessRole,
+      invited_by: row.invited_by ?? ownerEmail ?? null,
+      status: row.status ?? 'accepted',
+      created_at: row.created_at ?? new Date().toISOString(),
+    })) ?? []
+
+  return ownerEntry ? [ownerEntry, ...collaborators] : collaborators
 }
 
 function googleStaticMap(lat: number | null, lng: number | null, width = 640, height = 360) {
@@ -663,6 +745,141 @@ server.patch('/v1/trips/:id/items/:itemId', {}, async (req, reply) => {
     return { ok: true }
   } catch (e: any) {
     return reply.code(e.statusCode || 500).send({ error: e.message || 'db_error' })
+  }
+})
+
+server.get('/v1/trips/:id/chat', {}, async (req, reply) => {
+  try {
+    const email = ensureEmail(req.headers)
+    const tripId = (req.params as any)?.id as string
+    const access = await ensureTripAccess(tripId, email)
+    const collaborators = await listCollaborators(tripId, access.trip)
+
+    const { data: messages, error } = await supa
+      .from('trip_messages')
+      .select('id, author_email, message, created_at')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+
+    return {
+      role: access.role,
+      collaborators,
+      messages: (messages ?? []).map((msg: any) => ({
+        id: msg.id,
+        author_email: normalizeEmail(msg.author_email),
+        message: msg.message,
+        created_at: msg.created_at,
+      })),
+    }
+  } catch (e: any) {
+    const status = e?.statusCode || e?.status || 500
+    const message = e?.message || 'Unable to load chat'
+    return reply.code(status).send({ error: message })
+  }
+})
+
+server.post('/v1/trips/:id/chat', {}, async (req, reply) => {
+  try {
+    const email = ensureEmail(req.headers)
+    const tripId = (req.params as any)?.id as string
+    await ensureTripAccess(tripId, email)
+
+    const textRaw = ((req.body as any)?.message ?? '').toString()
+    const text = textRaw.trim()
+    if (!text) return reply.code(400).send({ error: 'message_required' })
+    if (text.length > 2000) return reply.code(400).send({ error: 'message_too_long' })
+
+    const author = normalizeEmail(email)
+    const { data, error } = await supa
+      .from('trip_messages')
+      .insert({ trip_id: tripId, author_email: author, message: text })
+      .select('id, author_email, message, created_at')
+      .single()
+
+    if (error) throw error
+
+    return {
+      message: {
+        id: data?.id,
+        author_email: normalizeEmail(data?.author_email),
+        message: data?.message,
+        created_at: data?.created_at,
+      },
+    }
+  } catch (e: any) {
+    const status = e?.statusCode || e?.status || 500
+    const message = e?.message || 'Unable to send message'
+    return reply.code(status).send({ error: message })
+  }
+})
+
+server.post('/v1/trips/:id/collaborators', {}, async (req, reply) => {
+  try {
+    const email = ensureEmail(req.headers)
+    const tripId = (req.params as any)?.id as string
+    const access = await ensureTripAccess(tripId, email)
+    if (access.role !== 'owner') return reply.code(403).send({ error: 'Only the owner can share this trip.' })
+
+    const rawInvite = (req.body as any)?.email as string | undefined
+    const invitee = normalizeEmail(rawInvite)
+    if (!invitee || !EMAIL_REGEX.test(invitee)) {
+      return reply.code(400).send({ error: 'Provide a valid email address.' })
+    }
+
+    if (invitee === normalizeEmail(email)) {
+      return reply.code(400).send({ error: 'You are already the owner of this trip.' })
+    }
+
+    const { data: existing, error: existingErr } = await supa
+      .from('trip_collaborators')
+      .select('email, invited_by, status, created_at')
+      .eq('trip_id', tripId)
+      .eq('email', invitee)
+      .maybeSingle()
+
+    if (existingErr) throw existingErr
+
+    if (existing) {
+      return {
+        collaborator: {
+          email: invitee,
+          role: 'collaborator',
+          invited_by: existing.invited_by ?? normalizeEmail(email),
+          status: existing.status ?? 'accepted',
+          created_at: existing.created_at ?? new Date().toISOString(),
+        },
+        duplicate: true,
+      }
+    }
+
+    const { data, error } = await supa
+      .from('trip_collaborators')
+      .insert({
+        trip_id: tripId,
+        email: invitee,
+        invited_by: normalizeEmail(email),
+        status: 'accepted',
+      })
+      .select('email, invited_by, status, created_at')
+      .single()
+
+    if (error) throw error
+
+    return {
+      collaborator: {
+        email: invitee,
+        role: 'collaborator',
+        invited_by: data?.invited_by ?? normalizeEmail(email),
+        status: data?.status ?? 'accepted',
+        created_at: data?.created_at ?? new Date().toISOString(),
+      },
+    }
+  } catch (e: any) {
+    const status = e?.statusCode || e?.status || 500
+    const message = e?.message || 'Unable to add collaborator'
+    return reply.code(status).send({ error: message })
   }
 })
 

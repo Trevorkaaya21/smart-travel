@@ -10,6 +10,7 @@ import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities'
 import { API_BASE } from '@/lib/configure'
 import { ShareButton } from '@/components/trip/share-button'
+import { TripChatPanel } from '@/components/trip/trip-chat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -437,8 +438,10 @@ export default function TripPage() {
               </DayColumn>
             )
           })}
-        </div>
-      </DndContext>
+    </div>
+  </DndContext>
+
+      {tripId ? <TripChatPanel tripId={tripId} /> : null}
     </main>
   )
 }
