@@ -9,7 +9,10 @@ const envFiles = [
 
 for (const file of envFiles) {
   const result = config({ path: file, override: false })
-  if (result.error && result.error.code !== 'ENOENT') {
-    console.warn(`[env] Failed to load ${file}:`, result.error.message)
+  if (result.error) {
+    const err = result.error as NodeJS.ErrnoException
+    if (err.code !== 'ENOENT') {
+      console.warn(`[env] Failed to load ${file}:`, err.message)
+    }
   }
 }

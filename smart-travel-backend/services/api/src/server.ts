@@ -292,13 +292,13 @@ async function callGemini(model: string, prompt: string) {
   return { text, raw: parsed }
 }
 
-async function resolveGeminiCandidates() {
+async function resolveGeminiCandidates(): Promise<string[]> {
   const baseCandidates = GEMINI_MODEL_CANDIDATES.length ? GEMINI_MODEL_CANDIDATES : DEFAULT_GEMINI_MODELS
   try {
     const available = await listGeminiModels()
     const matches = baseCandidates.filter((model) => available.includes(model))
     if (matches.length) return matches
-    const firstFlash = available.find((name) => /gemini.*flash/i.test(name))
+    const firstFlash = available.find((name: string) => /gemini.*flash/i.test(name))
     if (firstFlash) return [firstFlash]
   } catch (err) {
     console.warn('Gemini model listing failed', err)
@@ -306,7 +306,7 @@ async function resolveGeminiCandidates() {
   return baseCandidates
 }
 
-async function listGeminiModels() {
+async function listGeminiModels(): Promise<string[]> {
   if (!GA_KEY) throw new Error('GOOGLE_AI_STUDIO_API_KEY not configured')
   const now = Date.now()
   if (cachedModelList && now - cachedModelListFetchedAt < 5 * 60 * 1000) return cachedModelList
@@ -316,8 +316,10 @@ async function listGeminiModels() {
     throw new Error(`ListModels failed (${res.status})`)
   }
   const data = await res.json()
-  const names = Array.isArray(data?.models)
-    ? data.models.map((model: any) => model?.name).filter((name: any) => typeof name === 'string')
+  const names: string[] = Array.isArray(data?.models)
+    ? data.models
+        .map((model: any) => model?.name)
+        .filter((name: unknown): name is string => typeof name === 'string')
     : []
   cachedModelList = names
   cachedModelListFetchedAt = now
