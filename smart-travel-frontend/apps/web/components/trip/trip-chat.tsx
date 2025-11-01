@@ -64,6 +64,7 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
 
   const [message, setMessage] = React.useState('')
   const [inviteEmail, setInviteEmail] = React.useState('')
+  const messagesRef = React.useRef<HTMLDivElement | null>(null)
 
   const chatQuery = useQuery({
     queryKey: ['trip-chat', tripId, email],
@@ -79,6 +80,8 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
       }
       return (await res.json()) as TripChatResponse
     },
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   })
 
   const sendMutation = useMutation({
@@ -123,7 +126,16 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
       if (data.duplicate) {
         toast('Collaborator already added', { description: data.collaborator.email })
       } else {
-        toast.success('Collaborator added', { description: data.collaborator.email })
+        const chatLink =
+          typeof window !== 'undefined' ? `${window.location.origin}/trip/${tripId}#trip-chat` : null
+        if (chatLink) {
+          navigator.clipboard?.writeText(chatLink).catch(() => null)
+        }
+        toast.success('Collaborator added', {
+          description: chatLink
+            ? `${data.collaborator.email} can open ${chatLink} (link copied)`
+            : data.collaborator.email,
+        })
       }
     },
     onError: (err) => {
@@ -159,13 +171,26 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
     )
   }
 
-  const data = chatQuery.data!
+  const data = chatQuery.data
+  if (!data) {
+    return (
+      <div className="content-card text-sm text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+        Loading trip chat…
+      </div>
+    )
+  }
+
   const isOwner = data.role === 'owner'
-  const messages = data.messages ?? []
-  const collaborators = data.collaborators ?? []
+  const messages = (data.messages ?? []) as TripChatResponse['messages']
+  const collaborators = (data.collaborators ?? []) as TripChatResponse['collaborators']
+
+  React.useEffect(() => {
+    if (!messagesRef.current) return
+    messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages.length])
 
   return (
-    <div className="content-card space-y-5">
+    <section id="trip-chat" className="content-card space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[rgb(var(--text))]">Trip chat</h2>
@@ -179,9 +204,16 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
         </div>
       </header>
 
+      <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-3 text-xs text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+        Messages refresh automatically every few seconds. Share the trip link so collaborators can join this chat.
+      </p>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
         <div className="space-y-4">
-          <div className="content-subtle max-h-[360px] space-y-3 overflow-y-auto p-4 text-sm">
+          <div
+            ref={messagesRef}
+            className="content-subtle max-h-[360px] space-y-3 overflow-y-auto p-4 text-sm"
+          >
             {messages.length === 0 ? (
               <p className="text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
                 No messages yet. Start the conversation!
@@ -282,6 +314,6 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
           )}
         </aside>
       </div>
-    </div>
+    </section>
   )
 }

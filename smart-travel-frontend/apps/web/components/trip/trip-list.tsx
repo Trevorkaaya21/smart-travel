@@ -370,6 +370,14 @@ export function TripList() {
               >
                 Open in new tab
               </a>
+              <Link
+                href={`/trip/${t.id}#trip-chat`}
+                className="btn"
+                prefetch={false}
+                title="Jump to trip chat"
+              >
+                Open chat
+              </Link>
               <button
                 onClick={() => duplicateMut.mutate({ id: t.id, name: t.name ?? 'Trip' })}
                 disabled={duplicateMut.isPending}

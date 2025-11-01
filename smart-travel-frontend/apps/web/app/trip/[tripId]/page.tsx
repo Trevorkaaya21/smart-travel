@@ -128,10 +128,14 @@ function ItemRow({
   item,
   onDelete,
   onEdit,
+  maxDay,
+  ensureDayVisible,
 }: {
   item: TripItem
   onDelete: (id: string) => void
   onEdit: (id: string, patch: Partial<Pick<TripItem, 'day' | 'note'>>) => void
+  maxDay: number
+  ensureDayVisible: (day: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style: React.CSSProperties = {
@@ -164,12 +168,16 @@ function ItemRow({
       </div>
       <div className="flex items-center gap-2">
         <select
-          value={item.day}
-          onChange={(e) => onEdit(item.id, { day: Number(e.currentTarget.value) })}
+          value={item.day ?? 1}
+          onChange={(e) => {
+            const nextDay = Number(e.currentTarget.value)
+            ensureDayVisible(nextDay)
+            onEdit(item.id, { day: nextDay })
+          }}
           className="timeline-select"
           title="Move to day"
         >
-          {Array.from({ length: Math.max(3, item.day) }, (_, i) => i + 1).map((d) => (
+          {Array.from({ length: Math.max(maxDay + 1, item.day ?? 1) }, (_, i) => i + 1).map((d) => (
             <option key={d} value={d}>
               Day {d}
             </option>
@@ -202,6 +210,7 @@ export default function TripPage() {
   const tripId = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId
   const { data: session } = useSession()
   const email = (session?.user as any)?.email as string | undefined
+  const [visibleDays, setVisibleDays] = React.useState(3)
 
   const qc = useQueryClient()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
@@ -307,8 +316,29 @@ export default function TripPage() {
 
   const items = itemsQ.data?.items ?? []
   const byDay = groupByDay(items)
-  const maxDay = Math.max(3, ...Object.keys(byDay).map((d) => Number(d)), 1)
-  const dayList = Array.from({ length: maxDay }, (_, i) => i + 1)
+  const highestItemDay = React.useMemo(
+    () => items.reduce((max, item) => Math.max(max, item.day ?? 1), 1),
+    [items]
+  )
+
+  React.useEffect(() => {
+    const baseline = Math.max(3, highestItemDay)
+    setVisibleDays((prev) => (prev < baseline ? baseline : prev))
+  }, [highestItemDay])
+
+  const ensureDayVisible = React.useCallback((day: number) => {
+    if (!Number.isFinite(day)) return
+    setVisibleDays((prev) => (day > prev ? day : prev))
+  }, [])
+
+  const dayList = React.useMemo(
+    () => Array.from({ length: visibleDays }, (_, i) => i + 1),
+    [visibleDays]
+  )
+
+  const handleAddDay = React.useCallback(() => {
+    setVisibleDays((prev) => prev + 1)
+  }, [])
 
   const onDragEnd = (e: DragEndEvent) => {
     if (!email) return toast('Please sign in.')
@@ -328,6 +358,7 @@ export default function TripPage() {
     if (!destDay) return
 
     const destIds = (byDay[destDay] ?? []).map((x) => x.id)
+    ensureDayVisible(destDay)
 
     if (overId.startsWith('day-')) {
       // dropped into empty space in that day → append
@@ -407,6 +438,16 @@ export default function TripPage() {
         </div>
       )}
 
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-[rgb(var(--text))]">Itinerary board</h2>
+        <Button
+          onClick={handleAddDay}
+          className="btn btn-ghost rounded-full px-4 py-2 text-sm font-semibold"
+        >
+          + Add day
+        </Button>
+      </div>
+
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {dayList.map((day) => {
@@ -424,6 +465,8 @@ export default function TripPage() {
                     <ItemRow
                       key={it.id}
                       item={it}
+                      maxDay={visibleDays}
+                      ensureDayVisible={ensureDayVisible}
                       onDelete={(id) => {
                         if (!email) return toast('Please sign in.')
                         delMut.mutate(id)
