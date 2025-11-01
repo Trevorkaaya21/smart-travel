@@ -22,7 +22,6 @@ ENV PORT=3000
 COPY --from=build /app/smart-travel-frontend/apps/web/package.json ./
 COPY --from=build /app/smart-travel-frontend/apps/web/next.config.mjs ./next.config.mjs
 COPY --from=build /app/smart-travel-frontend/apps/web/.next ./.next
-COPY --from=build /app/smart-travel-frontend/apps/web/public ./public
 COPY --from=build /app/node_modules ./node_modules
 
 EXPOSE 3000
