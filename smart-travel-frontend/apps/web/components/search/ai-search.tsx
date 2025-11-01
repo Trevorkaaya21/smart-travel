@@ -11,6 +11,7 @@ import { GoogleMap } from '@/components/map/google-map'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { api, API_BASE } from '@/lib/api'
 
 type Place = {
   id: string
@@ -24,7 +25,6 @@ type Place = {
   photo_credit?: string | null
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:4000'
 const DUPLICATE_RE = /duplicate key/i
 
 const PROMPTS = [
@@ -150,7 +150,7 @@ export default function AiSearch() {
     try {
       const loc = locationRef.current
 
-      const r = await fetch(`${API_BASE}/v1/ai/search`, {
+      const r = await fetch(api('/v1/ai/search'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ q: query, lat: loc.lat, lng: loc.lng }),
