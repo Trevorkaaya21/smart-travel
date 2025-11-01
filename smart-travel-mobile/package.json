@@ -7,7 +7,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "lint": "expo lint",
+    "lint": "eslint .",
     "test": "echo \"No mobile tests yet\""
   },
   "dependencies": {
@@ -37,7 +37,6 @@
     "@types/react": "~18.2.45",
     "@types/react-native": "~0.73.0",
     "babel-preset-expo": "~11.0.3",
-    "eslint": "^9.4.0",
     "typescript": "^5.4.0"
   },
   "engines": {

@@ -12,7 +12,7 @@ RUN pnpm install --filter @smart-travel/api... --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @smart-travel/api... build
-RUN pnpm prune --filter @smart-travel/api... --prod
+RUN pnpm prune --prod
 
 FROM node:20-alpine AS runner
 WORKDIR /app

@@ -10,7 +10,7 @@ const reactHooksRecommended = reactHooks.configs?.recommended ?? { rules: {} }
 
 export default tseslint.config(
   {
-    ignores: ['**/.next/**', 'dist', 'node_modules', '**/*.config.js']
+    ignores: ['**/.next/**', 'dist', '**/dist/**', 'node_modules', '**/*.config.js', '**/*.config.ts']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -44,6 +44,22 @@ export default tseslint.config(
       ...nextCoreWebVitals?.rules,
       ...reactHooksRecommended.rules,
       'react-hooks/set-state-in-effect': 'off'
+    }
+  },
+  {
+    files: ['smart-travel-mobile/**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      'react-hooks': reactHooks
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...(globals['react-native'] ?? {})
+      }
+    },
+    rules: {
+      ...reactHooksRecommended.rules
     }
   }
 )
