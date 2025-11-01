@@ -34,6 +34,8 @@ type TripItem = {
   rating?: number | null
 }
 
+const EMPTY_ITEMS: TripItem[] = []
+
 /* ---------- API helpers ---------- */
 
 async function fetchTrip(id: string) {
@@ -314,8 +316,11 @@ export default function TripPage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['trip-items', tripId] }),
   })
 
-  const items = itemsQ.data?.items ?? []
-  const byDay = groupByDay(items)
+  const items = React.useMemo(
+    () => itemsQ.data?.items ?? EMPTY_ITEMS,
+    [itemsQ.data?.items]
+  )
+  const byDay = React.useMemo(() => groupByDay(items), [items])
   const highestItemDay = React.useMemo(
     () => items.reduce((max, item) => Math.max(max, item.day ?? 1), 1),
     [items]

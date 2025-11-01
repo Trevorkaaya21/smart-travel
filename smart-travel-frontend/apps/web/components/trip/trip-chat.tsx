@@ -56,6 +56,9 @@ function formatTimestamp(value: string) {
   }
 }
 
+const EMPTY_MESSAGES: TripChatResponse['messages'] = []
+const EMPTY_COLLABORATORS: TripChatResponse['collaborators'] = []
+
 export function TripChatPanel({ tripId }: { tripId: string }) {
   const { isGuest } = useGuest()
   const { data: session } = useSession()
@@ -144,6 +147,16 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
     },
   })
 
+  const data = chatQuery.data
+  const messages = data?.messages ?? EMPTY_MESSAGES
+  const collaborators = data?.collaborators ?? EMPTY_COLLABORATORS
+  const isOwner = data?.role === 'owner'
+
+  React.useEffect(() => {
+    if (!messagesRef.current) return
+    messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages.length])
+
   if (isGuest || !email) {
     return (
       <div className="content-card">
@@ -171,7 +184,6 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
     )
   }
 
-  const data = chatQuery.data
   if (!data) {
     return (
       <div className="content-card text-sm text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
@@ -179,15 +191,6 @@ export function TripChatPanel({ tripId }: { tripId: string }) {
       </div>
     )
   }
-
-  const isOwner = data.role === 'owner'
-  const messages = (data.messages ?? []) as TripChatResponse['messages']
-  const collaborators = (data.collaborators ?? []) as TripChatResponse['collaborators']
-
-  React.useEffect(() => {
-    if (!messagesRef.current) return
-    messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages.length])
 
   return (
     <section id="trip-chat" className="content-card space-y-5">
