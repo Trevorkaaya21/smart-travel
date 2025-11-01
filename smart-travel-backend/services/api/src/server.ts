@@ -439,8 +439,15 @@ function resolveCorsOrigins() {
   return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...extra]))
 }
 
+const corsOrigins = resolveCorsOrigins()
+server.log.info({ corsOrigins }, 'CORS origins')
+
 await server.register(cors, {
-  origin: resolveCorsOrigins(),
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true)
+    if (corsOrigins.includes(origin)) return cb(null, true)
+    cb(new Error(`Origin ${origin} not allowed by CORS`), false)
+  },
   allowedHeaders: ['Content-Type', 'x-user-email']
 })
 
