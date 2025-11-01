@@ -414,8 +414,33 @@ async function listGeminiModels(): Promise<string[]> {
 
 const server = Fastify({ logger: true })
 
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+]
+
+function resolveCorsOrigins() {
+  const envSources = [
+    process.env.CORS_ALLOWED_ORIGINS,
+    process.env.APP_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_SITE_ORIGIN,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.WEB_APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  ]
+
+  const extra = envSources
+    .flatMap((entry) => (entry ? entry.split(',') : []))
+    .map((value) => value?.trim())
+    .filter((value): value is string => !!value)
+
+  return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...extra]))
+}
+
 await server.register(cors, {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'],
+  origin: resolveCorsOrigins(),
   allowedHeaders: ['Content-Type', 'x-user-email']
 })
 
