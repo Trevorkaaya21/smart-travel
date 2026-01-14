@@ -19,7 +19,7 @@ interface TravelAssistantProps {
   destination?: string
 }
 
-export function TravelAssistant({ tripId, destination }: TravelAssistantProps) {
+export function TravelAssistant({ tripId: _tripId, destination }: TravelAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -62,7 +62,7 @@ export function TravelAssistant({ tripId, destination }: TravelAssistantProps) {
       }
 
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
+    } catch (_error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',

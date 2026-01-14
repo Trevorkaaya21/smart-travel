@@ -1,6 +1,6 @@
 'use client'
 
-import { Crown, Sparkles } from 'lucide-react'
+import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PremiumBadgeProps {

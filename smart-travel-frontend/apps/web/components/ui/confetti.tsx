@@ -9,11 +9,34 @@ interface ConfettiProps {
   className?: string
 }
 
+interface ConfettiPiece {
+  id: number
+  left: string
+  color: string
+  delay: string
+  duration: string
+}
+
 export function Confetti({ trigger, duration = 3000, className }: ConfettiProps) {
   const [show, setShow] = useState(false)
+  const [pieces, setPieces] = useState<ConfettiPiece[]>([])
 
   useEffect(() => {
     if (trigger) {
+      const colors = [
+        'rgb(var(--accent))',
+        'rgb(var(--accent-secondary))',
+        'rgb(var(--accent-tertiary))',
+        'rgb(var(--success))',
+      ]
+      const nextPieces = Array.from({ length: 50 }, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: `${Math.random() * 2}s`,
+        duration: `${2 + Math.random() * 2}s`,
+      }))
+      setPieces(nextPieces)
       setShow(true)
       const timer = setTimeout(() => setShow(false), duration)
       return () => clearTimeout(timer)
@@ -23,22 +46,17 @@ export function Confetti({ trigger, duration = 3000, className }: ConfettiProps)
   if (!show) return null
 
   return (
-    <div className={cn("fixed inset-0 pointer-events-none z-50", className)}>
-      {Array.from({ length: 50 }).map((_, i) => (
+    <div className={cn('fixed inset-0 pointer-events-none z-50', className)}>
+      {pieces.map((piece) => (
         <div
-          key={i}
+          key={piece.id}
           className="absolute w-2 h-2 rounded-full animate-confetti"
           style={{
-            left: `${Math.random() * 100}%`,
+            left: piece.left,
             top: '-10px',
-            backgroundColor: [
-              'rgb(var(--accent))',
-              'rgb(var(--accent-secondary))',
-              'rgb(var(--accent-tertiary))',
-              'rgb(var(--success))',
-            ][Math.floor(Math.random() * 4)],
-            animationDelay: `${Math.random() * 2}s`,
-            animationDuration: `${2 + Math.random() * 2}s`,
+            backgroundColor: piece.color,
+            animationDelay: piece.delay,
+            animationDuration: piece.duration,
           }}
         />
       ))}

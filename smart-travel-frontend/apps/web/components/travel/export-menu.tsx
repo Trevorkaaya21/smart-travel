@@ -10,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { toast } from 'sonner'
 
 interface ExportMenuProps {
   tripId: string
@@ -27,7 +26,7 @@ export function ExportMenu({ tripId, tripName, days }: ExportMenuProps) {
       // TODO: Implement PDF generation (using jsPDF or similar)
       await new Promise(resolve => setTimeout(resolve, 1000))
       toast.success('PDF exported!', { description: `${tripName}.pdf downloaded` })
-    } catch (error) {
+    } catch (_error) {
       toast.error('Export failed', { description: 'Could not generate PDF' })
     } finally {
       setLoading(null)
@@ -47,7 +46,7 @@ export function ExportMenu({ tripId, tripName, days }: ExportMenuProps) {
       link.click()
       URL.revokeObjectURL(url)
       toast.success('Calendar exported!', { description: 'Import to your calendar app' })
-    } catch (error) {
+    } catch (_error) {
       toast.error('Export failed', { description: 'Could not generate calendar file' })
     } finally {
       setLoading(null)
@@ -68,7 +67,7 @@ export function ExportMenu({ tripId, tripName, days }: ExportMenuProps) {
         await navigator.clipboard.writeText(shareUrl)
         toast.success('Link copied!', { description: 'Share link copied to clipboard' })
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Share failed', { description: 'Could not share trip' })
     }
   }
@@ -79,7 +78,7 @@ export function ExportMenu({ tripId, tripName, days }: ExportMenuProps) {
       const subject = encodeURIComponent(`My Trip: ${tripName}`)
       const body = encodeURIComponent(`Check out my trip itinerary: ${shareUrl}`)
       window.location.href = `mailto:?subject=${subject}&body=${body}`
-    } catch (error) {
+    } catch (_error) {
       toast.error('Email failed', { description: 'Could not open email client' })
     }
   }

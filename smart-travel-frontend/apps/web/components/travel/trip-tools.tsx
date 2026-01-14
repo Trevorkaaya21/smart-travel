@@ -6,7 +6,6 @@ import { CurrencyConverter } from './currency-converter'
 import { PackingList } from './packing-list'
 import { BudgetTracker } from './budget-tracker'
 import { CloudRain, DollarSign, Luggage, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface TripToolsProps {
   tripId: string

@@ -2,7 +2,7 @@
 
 import { PremiumModal } from '@/components/premium/premium-modal'
 import { useState } from 'react'
-import { Crown, Sparkles, Zap, Globe, Shield, Infinity, Check } from 'lucide-react'
+import { Crown, Sparkles, Zap, Globe, Shield, Infinity as InfinityIcon, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const FEATURES = [
@@ -31,7 +31,7 @@ const FEATURES = [
     color: 'rgb(var(--success))',
   },
   {
-    icon: Infinity,
+    icon: InfinityIcon,
     title: 'Unlimited Everything',
     description: 'Unlimited trips, favorites, and storage. Plan as many adventures as you want.',
     color: 'rgb(var(--accent))',

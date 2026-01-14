@@ -30,19 +30,17 @@ export function CurrencyConverter({ defaultFrom = 'USD', defaultTo = 'EUR' }: Cu
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    convertCurrency()
-  }, [amount, fromCurrency, toCurrency])
-
-  const convertCurrency = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       setConvertedAmount('')
+      setRate(0)
+      setLoading(false)
       return
     }
 
     setLoading(true)
     // TODO: Integrate with currency API (ExchangeRate-API, Fixer.io, etc.)
     // For now, use mock rates
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       const mockRates: Record<string, Record<string, number>> = {
         USD: { EUR: 0.85, GBP: 0.73, JPY: 110, CAD: 1.25, AUD: 1.35 },
         EUR: { USD: 1.18, GBP: 0.86, JPY: 129, CAD: 1.47, AUD: 1.59 },
@@ -52,7 +50,8 @@ export function CurrencyConverter({ defaultFrom = 'USD', defaultTo = 'EUR' }: Cu
       setConvertedAmount((parseFloat(amount) * exchangeRate).toFixed(2))
       setLoading(false)
     }, 300)
-  }
+    return () => clearTimeout(timer)
+  }, [amount, fromCurrency, toCurrency])
 
   const fromCurrencyData = CURRENCIES.find(c => c.code === fromCurrency)
   const toCurrencyData = CURRENCIES.find(c => c.code === toCurrency)

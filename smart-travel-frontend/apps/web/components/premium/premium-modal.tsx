@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Crown, Check, Sparkles, Zap, Globe, Shield, Infinity } from 'lucide-react'
+import { Crown, Check, Sparkles, Zap, Globe, Shield, Infinity as InfinityIcon } from 'lucide-react'
 import { useState } from 'react'
 
 interface PremiumModalProps {
@@ -15,7 +15,7 @@ const FEATURES = [
   { icon: Zap, text: 'Advanced AI travel assistant' },
   { icon: Globe, text: 'Weather forecasts & currency converter' },
   { icon: Shield, text: 'Budget tracker & expense management' },
-  { icon: Infinity, text: 'Unlimited trips & favorites' },
+  { icon: InfinityIcon, text: 'Unlimited trips & favorites' },
   { icon: Crown, text: 'Priority support & early access' },
 ]
 

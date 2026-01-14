@@ -1,6 +1,6 @@
 'use client'
 
-import { DollarSign, Plus, TrendingUp, TrendingDown } from 'lucide-react'
+import { DollarSign, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,7 @@ interface BudgetTrackerProps {
   budget?: number
 }
 
-export function BudgetTracker({ tripId, budget: initialBudget = 0 }: BudgetTrackerProps) {
+export function BudgetTracker({ tripId: _tripId, budget: initialBudget = 0 }: BudgetTrackerProps) {
   const [budget, setBudget] = useState(initialBudget)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: CATEGORIES[0] })
@@ -53,11 +53,6 @@ export function BudgetTracker({ tripId, budget: initialBudget = 0 }: BudgetTrack
     ])
     setNewExpense({ description: '', amount: '', category: CATEGORIES[0] })
   }
-
-  const expensesByCategory = CATEGORIES.reduce((acc, category) => {
-    acc[category] = expenses.filter(exp => exp.category === category).reduce((sum, exp) => sum + exp.amount, 0)
-    return acc
-  }, {} as Record<string, number>)
 
   return (
     <PremiumGate feature="Budget tracker">

@@ -30,12 +30,15 @@ const SUGGESTED_ITEMS = {
   Accessories: ['Sunglasses', 'Hat', 'Backpack', 'Water bottle'],
 }
 
+let packingItemId = 0
+const nextPackingItemId = () => `packing-${packingItemId++}`
+
 interface PackingListProps {
   tripId?: string
   days?: number
 }
 
-export function PackingList({ tripId, days = 3 }: PackingListProps) {
+export function PackingList({ tripId: _tripId, days = 3 }: PackingListProps) {
   const [items, setItems] = useState<PackingItem[]>([])
   const [newItem, setNewItem] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORIES[0])
@@ -46,7 +49,7 @@ export function PackingList({ tripId, days = 3 }: PackingListProps) {
     setItems([
       ...items,
       {
-        id: Date.now().toString(),
+        id: nextPackingItemId(),
         name: name.trim(),
         category,
         checked: false,
