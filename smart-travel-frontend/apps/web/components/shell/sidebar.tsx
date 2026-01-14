@@ -8,8 +8,9 @@ import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { LucideIcon } from 'lucide-react'
-import { Compass, Sparkles, MapPinned, Heart, NotebookPen, UserRound, LogOut, LogIn, Sun, Moon } from 'lucide-react'
+import { Compass, Sparkles, MapPinned, Heart, NotebookPen, UserRound, LogOut, LogIn, Sun, Moon, Crown } from 'lucide-react'
 import { useGuest } from '@/lib/useGuest'
+import { cn } from '@/lib/utils'
 
 type NavItem = {
   href: string
@@ -24,6 +25,7 @@ const nav: NavItem[] = [
   { href: '/dashboard/trips', label: 'My Trips', icon: MapPinned, requiresAuth: true },
   { href: '/dashboard/favorites', label: 'My Favorites', icon: Heart, requiresAuth: true },
   { href: '/dashboard/diary', label: 'My Travel Diary', icon: NotebookPen, requiresAuth: true },
+  { href: '/dashboard/premium', label: 'Premium', icon: Crown, requiresAuth: false },
   { href: '/dashboard/profile', label: 'Profile', icon: UserRound, requiresAuth: true },
 ]
 
@@ -114,18 +116,40 @@ export default function SidebarNav() {
         )}
       </div>
 
-      <div className="card flex items-center justify-between gap-2 px-3 py-2 text-xs text-[rgb(var(--muted))]">
-        <div className="flex items-center gap-2">
-          {mounted && resolvedTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            <span>{mounted ? (resolvedTheme === 'dark' ? 'Dark mode' : 'Light mode') : 'Theme'}</span>
+      <div className="card flex items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-2.5 text-sm font-medium text-[rgb(var(--text))]">
+          <div className="relative h-5 w-5">
+            {mounted ? (
+              <>
+                <Sun 
+                  className={cn(
+                    "absolute inset-0 h-5 w-5 transition-all duration-500 text-[rgb(var(--accent))]",
+                    resolvedTheme === 'dark' ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
+                  )}
+                />
+                <Moon 
+                  className={cn(
+                    "absolute inset-0 h-5 w-5 transition-all duration-500 text-[rgb(var(--accent))]",
+                    resolvedTheme === 'dark' ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"
+                  )}
+                />
+              </>
+            ) : (
+              <span className="inline-block h-5 w-5" />
+            )}
           </div>
-          <button
-            onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="btn btn-ghost text-[11px] uppercase tracking-[0.25em] px-3 py-1"
-          >
-            Switch
-          </button>
+          <span className="transition-colors duration-300">
+            {mounted ? (resolvedTheme === 'dark' ? 'Dark mode' : 'Light mode') : 'Theme'}
+          </span>
         </div>
+        <button
+          onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          className="group relative inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 bg-gradient-to-br from-[rgb(var(--surface))] to-[rgb(var(--surface-muted))] border-[rgb(var(--border))]/60 hover:border-[rgb(var(--accent))]/40 hover:shadow-md hover:shadow-[rgb(var(--accent))]/10 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring))]/40"
+        >
+          Switch
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[rgb(var(--accent))]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        </button>
+      </div>
 
       {guestMode ? (
         <button

@@ -235,7 +235,10 @@ export default function AiSearch() {
         }
         throw new Error(extractErrorMessage(raw, res.status))
       }
-      toast.success('Added to your trip', { description: place.name })
+      toast.success('Added to trip! ✨', { 
+        description: place.name,
+        duration: 3000,
+      })
       setAddedTripIds((prev) => ({ ...prev, [place.id]: true }))
       queryClient.invalidateQueries({ queryKey: ['trip-items', defaultTripId] }).catch(() => {})
       queryClient.invalidateQueries({ queryKey: ['trip', defaultTripId] }).catch(() => {})
@@ -288,7 +291,10 @@ export default function AiSearch() {
           return next
         })
       } else {
-        toast.success('Saved to favorites', { description: place.name })
+        toast.success('Saved to favorites! ❤️', { 
+          description: place.name,
+          duration: 3000,
+        })
         setFavoriteIds((prev) => ({ ...prev, [place.id]: true }))
       }
     } catch (err) {
@@ -307,15 +313,15 @@ export default function AiSearch() {
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="space-y-6">
-        <div className="content-card">
+        <div className="content-card group">
           <div className="flex items-start gap-4">
             <div className="ui-liquid-icon">
-              <Sparkles className="h-5 w-5" />
+              <Sparkles className="h-5 w-5 text-[rgb(var(--accent))]" />
             </div>
             <div className="space-y-4 flex-1">
               <div>
-                <h2 className="text-xl font-semibold text-[rgb(var(--text))]">Discover with Google AI Studio</h2>
-                <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_78%,rgb(var(--muted))_22%)]">
+                <h2 className="text-2xl font-bold text-[rgb(var(--text))] mb-2">Discover with Google AI Studio</h2>
+                <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
                   Ask for vibes, budget, or activities. We refine your idea, surface the best spots, and drop them on the map instantly.
                 </p>
               </div>
@@ -330,23 +336,44 @@ export default function AiSearch() {
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder='Try "48 hours in Lisbon for foodies"'
-                  className="min-h-[52px] flex-1 rounded-2xl border-white/20 bg-white/5 text-base text-white placeholder:text-white/60"
+                  className="min-h-[56px] flex-1 rounded-2xl text-base input-surface"
                 />
                 <Button
                   type="submit"
                   disabled={loading || isPending}
-                  className="min-h-[52px] rounded-2xl border border-white/30 bg-white/20 px-6 text-base font-semibold text-[rgb(var(--text))] shadow-lg transition hover:bg-white/25 disabled:opacity-60"
+                  className="btn btn-primary min-h-[56px] rounded-2xl px-8 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-60"
                 >
-                  {loading || isPending ? 'Searching…' : 'Search'}
+                  {loading || isPending ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Searching…
+                    </span>
+                  ) : (
+                    'Search'
+                  )}
                 </Button>
               </form>
-              <div className="flex flex-wrap gap-2 text-xs text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+              <div className="flex flex-wrap gap-2 text-xs">
                 {PROMPTS.map(prompt => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => runSearch(prompt)}
-                    className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 transition hover:border-white/35 hover:bg-white/15"
+                    className="group rounded-full border px-4 py-2 font-medium transition-all duration-200 hover:-translate-y-0.5"
+                    style={{
+                      borderColor: 'rgba(var(--border) / .5)',
+                      background: 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
+                      color: 'color-mix(in oklab, rgb(var(--text)) 75%, rgb(var(--muted)) 25%)',
+                      boxShadow: '0 2px 8px rgba(var(--shadow-color) / .05)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(var(--accent) / .4)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--accent) / .15)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(var(--border) / .5)'
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(var(--shadow-color) / .05)'
+                    }}
                   >
                     {prompt}
                   </button>
@@ -359,11 +386,11 @@ export default function AiSearch() {
         <section className="space-y-4">
           <header className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-white">Curated results</h3>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Tap to enrich your itinerary</p>
+              <h3 className="text-xl font-bold text-[rgb(var(--text))] mb-1">Curated results</h3>
+              <p className="text-xs uppercase tracking-[0.3em] text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">Tap to enrich your itinerary</p>
             </div>
-            <div className="hidden items-center gap-2 text-xs text-white/60 md:flex">
-              <Compass className="h-4 w-4" />
+            <div className="hidden items-center gap-2 text-xs text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)] md:flex">
+              <Compass className="h-4 w-4 text-[rgb(var(--accent))]" />
               Precision powered by Google Places
             </div>
           </header>
@@ -375,8 +402,18 @@ export default function AiSearch() {
           )}
 
           {!items.length && !loading && !isPending ? (
-            <div className="ui-glass rounded-[28px] border border-white/15 bg-white/10 p-10 text-center text-sm text-white/70">
-              Search for anywhere in the world and Smart Travel will craft a shortlist of must-see stops.
+            <div className="content-card p-12 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(var(--accent) / .15), rgba(var(--accent) / .05))',
+                  boxShadow: '0 4px 16px rgba(var(--accent) / .1)'
+                }}
+              >
+                <Compass className="h-8 w-8 text-[rgb(var(--accent))]" />
+              </div>
+              <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                Search for anywhere in the world and Smart Travel will craft a shortlist of must-see stops.
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
@@ -437,55 +474,76 @@ function ResultCard({
     `https://images.unsplash.com/placeholder-photos/extra-large.jpg?auto=format&fit=crop&w=900&q=80`
 
   return (
-    <div className="group overflow-hidden rounded-[28px] border border-white/10 bg-white/10 shadow-lg backdrop-blur-xl transition hover:border-white/25 hover:bg-white/12">
+    <div className="group overflow-hidden rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      style={{
+        borderColor: 'rgba(var(--border) / .5)',
+        background: 'linear-gradient(165deg, rgba(var(--surface) / .95), rgba(var(--surface-muted) / .85))',
+        boxShadow: '0 8px 24px rgba(var(--shadow-color) / .1)'
+      }}
+    >
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <img
           src={image}
           alt={place.name}
           loading="lazy"
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/10 to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4 flex items-start justify-between gap-3 text-white">
+        <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--shadow-color))]/80 via-[rgb(var(--shadow-color))]/20 to-transparent" />
+        <div className="absolute bottom-4 left-4 right-4 flex items-start justify-between gap-3">
           <div>
-            <div className="text-base font-semibold leading-tight">{place.name}</div>
-            <div className="text-xs text-white/70">
-              {place.category ?? 'Place'} {place.rating ? `• ★ ${place.rating}` : ''}
+            <div className="text-lg font-bold leading-tight text-white mb-1">{place.name}</div>
+            <div className="text-xs text-white/80">
+              {place.category ?? 'Place'} {place.rating ? `• ★ ${place.rating.toFixed(1)}` : ''}
             </div>
           </div>
           {place.because && (
-            <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-white/80">
+            <span className="rounded-full border border-white/30 bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-sm">
               Curated
             </span>
           )}
         </div>
       </div>
 
-      <div className="space-y-3 p-5 text-sm text-white/80">
-        {place.because && <p className="text-xs leading-relaxed text-white/70">{place.because}</p>}
+      <div className="space-y-3 p-5">
+        {place.because && (
+          <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+            {place.because}
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={onAdd}
             disabled={disableActions || adding}
             className={cn(
-              'rounded-2xl border border-white/20 bg-white/15 px-4 py-2 text-xs font-semibold text-white shadow',
+              'btn btn-primary rounded-2xl px-4 py-2 text-xs font-semibold shadow-md hover:shadow-lg transition-all duration-200',
               disableActions && 'cursor-not-allowed opacity-60'
             )}
           >
-            {adding ? 'Adding…' : added ? 'Added to trip' : 'Add to trip'}
+            {adding ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Adding…
+              </span>
+            ) : added ? (
+              '✓ Added to trip'
+            ) : (
+              'Add to trip'
+            )}
           </Button>
           <Button
             onClick={onFavorite}
             disabled={disableActions || saving}
             className={cn(
-              'inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition',
-              favorite && 'border-rose-400/60 bg-rose-500/20 text-white',
+              'inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-semibold transition-all duration-200',
+              favorite 
+                ? 'border-[rgb(var(--accent))]/40 bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))] shadow-md' 
+                : 'border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]',
               disableActions && 'cursor-not-allowed opacity-60'
             )}
           >
-            <Heart className={cn('h-4 w-4', favorite ? 'fill-current' : 'stroke-[1.5]')} />
-            {saving ? 'Saving…' : favorite ? 'Favorited' : 'Save favorite'}
+            <Heart className={cn('h-4 w-4 transition-all duration-200', favorite ? 'fill-current scale-110' : 'stroke-[1.5]')} />
+            {saving ? 'Saving…' : favorite ? 'Favorited' : 'Save'}
           </Button>
         </div>
       </div>

@@ -31,5 +31,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   experiments: {
     typedRoutes: true
-  }
-})
+  },
+  ios: {
+    bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID ?? 'com.yourname.smarttravel',
+    supportsTablet: true
+  },
+  android: {
+    package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE ?? 'com.yourname.smarttravel',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#050713'
+    }
+  },
+  )}

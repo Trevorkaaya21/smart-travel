@@ -88,19 +88,37 @@ export default function CreateItineraryPage() {
 
   if (!authenticated) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center">
-        <div className="content-card max-w-lg space-y-4">
-          <span className="badge-pro inline-flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-[rgb(var(--accent))]" />
-            Create with AI
-          </span>
-          <h1 className="text-4xl font-semibold text-[rgb(var(--text))]">Sign in to craft itineraries with Google AI Studio</h1>
-          <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_72%,rgb(var(--muted))_28%)]">
-            Guests can explore Discover. To save personalized itineraries, drag-and-drop days, and sync across devices, connect your Google account.
-          </p>
+      <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center animate-fade-in">
+        <div className="content-card max-w-lg space-y-6">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full animate-pulse"
+                style={{
+                  background: 'radial-gradient(circle, rgba(var(--accent) / .3), transparent)',
+                }}
+              />
+              <div className="ui-liquid-icon relative z-10">
+                <Sparkles className="h-6 w-6 text-[rgb(var(--accent))]" />
+              </div>
+            </div>
+            <span className="badge-pro inline-flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-[rgb(var(--accent))]" />
+              Create with AI
+            </span>
+          </div>
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-[rgb(var(--accent))] via-[rgb(var(--accent-secondary))] to-[rgb(var(--accent-tertiary))] bg-clip-text text-transparent">
+              Sign in to craft itineraries with Google AI Studio
+            </h1>
+            <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+              Guests can explore Discover. To save personalized itineraries, drag-and-drop days, and sync across devices, connect your Google account.
+            </p>
+          </div>
           <Button
             onClick={() => signIn('google')}
-            className="btn btn-primary w-full justify-center rounded-2xl px-5 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-80"
+            className="btn btn-primary w-full justify-center rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-80 animate-scale-in"
+            style={{ animationDelay: '0.2s' }}
           >
             Sign in with Google
           </Button>
@@ -201,9 +219,14 @@ export default function CreateItineraryPage() {
         }
       }
 
-      toast.success('Itinerary saved to My Trips', { description: 'Visit My Trips to fine-tune the schedule.' })
+      toast.success('Itinerary saved! ✨', {
+        description: 'Visit My Trips to fine-tune the schedule.',
+        duration: 4000,
+      })
       await queryClient.invalidateQueries({ queryKey: ['trips', email] })
-      router.push(`/trip/${id}`)
+      setTimeout(() => {
+        router.push(`/trip/${id}`)
+      }, 500)
     } catch (err) {
       console.error(err)
       toast.error('Could not save itinerary', { description: err instanceof Error ? err.message : 'Try regenerating or saving again.' })
@@ -273,18 +296,25 @@ export default function CreateItineraryPage() {
                       type="button"
                       onClick={() => togglePreference(pref, preferences, setPreferences)}
                       className={cn(
-                        'inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold transition',
+                        'group relative inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200',
                         active
                           ? 'text-[rgb(var(--accent-contrast))]'
-                          : 'text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)] hover:-translate-y-[1px]'
+                          : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:-translate-y-1'
                       )}
                       style={{
-                        border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .6)',
-                        background: active ? 'rgb(var(--accent))' : 'rgba(var(--surface) / .72)',
-                        boxShadow: active ? '0 18px 38px rgba(var(--shadow-color) / .18)' : 'none',
+                        border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
+                        background: active
+                          ? 'linear-gradient(135deg, rgb(var(--accent)), color-mix(in srgb, rgb(var(--accent)) 90%, rgb(139, 92, 246)))'
+                          : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
+                        boxShadow: active
+                          ? '0 8px 24px rgba(var(--accent) / .3), 0 0 0 1px rgba(var(--accent) / .2)'
+                          : '0 2px 8px rgba(var(--shadow-color) / .05)',
                       }}
                     >
                       {pref}
+                      {active && (
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+                      )}
                     </button>
                   )
                 })}
@@ -310,19 +340,20 @@ export default function CreateItineraryPage() {
           <Button
             onClick={generate}
             disabled={loading}
-            className="btn btn-primary w-full rounded-2xl px-5 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+            className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
           >
             {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="inline-flex items-center gap-2.5 relative z-10">
+                <Loader2 className="h-5 w-5 animate-spin" />
                 Composing with AI…
               </span>
             ) : (
-              <span className="inline-flex items-center gap-2">
-                <Wand2 className="h-4 w-4" />
+              <span className="inline-flex items-center gap-2.5 relative z-10">
+                <Wand2 className="h-5 w-5 group-hover:rotate-12 transition-transform duration-300" />
                 Generate itinerary
               </span>
             )}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
           </Button>
         </section>
 
@@ -335,27 +366,61 @@ export default function CreateItineraryPage() {
               </p>
             </div>
             <div
-              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]"
-              style={{ border: '1px solid rgba(var(--border) / .6)', background: 'rgba(var(--surface-muted) / .45)' }}
+              className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all duration-200"
+              style={{
+                borderColor: 'rgba(var(--border) / .5)',
+                background: 'linear-gradient(165deg, rgba(var(--surface-muted) / .6), rgba(var(--surface-muted) / .4))',
+                boxShadow: '0 2px 8px rgba(var(--shadow-color) / .05)'
+              }}
             >
               <CalendarRange className="h-4 w-4 text-[rgb(var(--accent))]" />
-              {days} days · {pace.toLowerCase()} pace
+              <span className="text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+                {days} days · {pace.toLowerCase()} pace
+              </span>
             </div>
           </header>
 
           {loading ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)]">
-              <Loader2 className="h-6 w-6 animate-spin text-[rgb(var(--accent))]" />
-              <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)]">
-                Coordinating days, balancing energy, and mapping highlights…
-              </p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)] animate-fade-in">
+              <div className="relative">
+                <Loader2 className="h-8 w-8 animate-spin text-[rgb(var(--accent))]" />
+                <div
+                  className="absolute inset-0 rounded-full animate-pulse"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(var(--accent) / .3), transparent)',
+                  }}
+                />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="text-sm font-medium text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+                  Coordinating days, balancing energy, and mapping highlights…
+                </p>
+                <div className="flex gap-1 justify-center">
+                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent))] animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent-secondary))] animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent-tertiary))] animate-bounce" style={{ animationDelay: '0.4s' }} />
+                </div>
+              </div>
             </div>
           ) : itinerary.days.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)]">
-              <MapPinned className="h-8 w-8 text-[rgb(var(--accent))]" />
-              <p className="max-w-sm text-sm">
-                Your AI itinerary appears here. Tell us where you&apos;re going, pick a vibe, and generate to preview.
-              </p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)] animate-fade-in">
+              <div className="relative">
+                <div
+                  className="absolute inset-0 rounded-full animate-pulse"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(var(--accent) / .2), transparent)',
+                  }}
+                />
+                <MapPinned className="h-12 w-12 text-[rgb(var(--accent))] relative z-10" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <p className="text-sm font-medium">
+                  Your AI itinerary appears here. Tell us where you&apos;re going, pick a vibe, and generate to preview.
+                </p>
+                <p className="text-xs text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">
+                  ✨ Powered by Google AI Studio
+                </p>
+              </div>
             </div>
           ) : (
             <div className="flex-1 space-y-5 overflow-y-auto pr-2">
@@ -378,16 +443,16 @@ export default function CreateItineraryPage() {
               <Button
                 onClick={savePlan}
                 disabled={saving}
-                className="btn btn-primary w-full rounded-2xl px-5 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+                className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 {saving ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="inline-flex items-center gap-2.5">
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     Saving to My Trips…
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <Save className="h-4 w-4" />
+                  <span className="inline-flex items-center gap-2.5">
+                    <Save className="h-5 w-5" />
                     Save to My Trips
                   </span>
                 )}
@@ -421,18 +486,25 @@ function ChipSelect<T extends string>({ label, value, options, onChange }: { lab
               type="button"
               onClick={() => onChange(option)}
               className={cn(
-                'flex items-center justify-between rounded-2xl px-4 py-2 text-xs font-semibold transition',
+                'group relative flex items-center justify-between rounded-2xl px-4 py-2.5 text-xs font-semibold transition-all duration-200',
                 active
                   ? 'text-[rgb(var(--accent-contrast))]'
-                  : 'text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)] hover:-translate-y-[1px]'
+                  : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:-translate-y-1'
               )}
               style={{
-                border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .6)',
-                background: active ? 'rgb(var(--accent))' : 'rgba(var(--surface) / .72)',
-                boxShadow: active ? '0 16px 36px rgba(var(--shadow-color) / .2)' : 'none',
+                border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
+                background: active
+                  ? 'linear-gradient(135deg, rgb(var(--accent)), color-mix(in srgb, rgb(var(--accent)) 90%, rgb(139, 92, 246)))'
+                  : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
+                boxShadow: active
+                  ? '0 8px 24px rgba(var(--accent) / .3), 0 0 0 1px rgba(var(--accent) / .2)'
+                  : '0 2px 8px rgba(var(--shadow-color) / .05)',
               }}
             >
               {option}
+              {active && (
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+              )}
             </button>
           )
         })}
@@ -443,41 +515,53 @@ function ChipSelect<T extends string>({ label, value, options, onChange }: { lab
 
 function DayCard({ day }: { day: AiDay }) {
   return (
-    <article className="content-subtle space-y-4">
+    <article className="content-subtle space-y-4 transition-all duration-200 hover:shadow-lg">
       <div className="flex items-center justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <span className="form-label">Day {day.day}</span>
-          <h3 className="text-base font-semibold text-[rgb(var(--text))]">{day.title || `Day ${day.day}`}</h3>
+          <h3 className="text-lg font-semibold text-[rgb(var(--text))]">{day.title || `Day ${day.day}`}</h3>
         </div>
         {day.theme && <span className="badge-pro text-[10px]">{day.theme}</span>}
       </div>
       {day.summary && (
-        <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">{day.summary}</p>
+        <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">{day.summary}</p>
       )}
       <div className="space-y-3">
         {(day.entries ?? []).map((entry, idx) => (
           <div
             key={`${entry.title}-${idx}`}
-            className="rounded-2xl border px-4 py-3 text-sm transition"
+            className="group rounded-2xl border px-4 py-3.5 text-sm transition-all duration-200 hover:-translate-y-0.5"
             style={{
-              borderColor: 'rgba(var(--border) / .55)',
-              background: 'rgba(var(--surface) / .78)',
-              boxShadow: '0 18px 36px rgba(var(--shadow-color) / .18)',
+              borderColor: 'rgba(var(--border) / .5)',
+              background: 'linear-gradient(165deg, rgba(var(--surface) / .9), rgba(var(--surface-muted) / .7))',
+              boxShadow: '0 4px 16px rgba(var(--shadow-color) / .08)',
             }}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="font-semibold text-[rgb(var(--text))]">{entry.title}</div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">
+              <div className="rounded-full bg-[rgb(var(--accent))]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgb(var(--accent))]">
                 {entry.time || 'Flexible'}
               </div>
             </div>
             {entry.description && (
-              <p className="mt-1 text-xs text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)]">{entry.description}</p>
+              <p className="mt-2 text-xs leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_72%,rgb(var(--muted))_28%)]">{entry.description}</p>
             )}
-            <div className="mt-2 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.25em] text-[color-mix(in_oklab,rgb(var(--text))_58%,rgb(var(--muted))_42%)]">
-              {entry.category && <span>#{entry.category}</span>}
-              {entry.neighborhood && <span>@{entry.neighborhood}</span>}
-              {entry.duration && <span>{entry.duration}</span>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {entry.category && (
+                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                  #{entry.category}
+                </span>
+              )}
+              {entry.neighborhood && (
+                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                  @{entry.neighborhood}
+                </span>
+              )}
+              {entry.duration && (
+                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                  {entry.duration}
+                </span>
+              )}
             </div>
           </div>
         ))}
