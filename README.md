@@ -1,6 +1,6 @@
 # Smart Travel
 
-A multi-platform travel planning app that helps you discover places, build itineraries, and share trips with friends. Search for restaurants, clubs, hotels, or pretty much any place—anywhere in the world.
+A multi-platform travel planning app that helps you discover places, build itineraries, and share trips with friends. Search for restaurants, clubs, hotels, or pretty much any place anywhere in the world.
 
 ---
 
@@ -138,3 +138,4 @@ pnpm --filter @smart-travel/api lint
 pnpm --filter @smart-travel/web lint
 pnpm --filter @smart-travel/mobile lint
 ```
+

@@ -233,7 +233,11 @@ async function searchPlacesFoursquare(q: string, lat?: number, lng?: number, lim
     }, 10000)
     
     if (!res.ok) {
-      console.warn('Foursquare API failed:', res.status, res.statusText)
+      if (res.status === 401) {
+        console.warn('Foursquare API 401 Unauthorized - set FOURSQUARE_API_KEY in environment (get free key at developer.foursquare.com)')
+      } else {
+        console.warn('Foursquare API failed:', res.status, res.statusText)
+      }
       return null
     }
     
@@ -282,6 +286,13 @@ async function searchPlacesFoursquare(q: string, lat?: number, lng?: number, lim
   }
 }
 
+/** Overpass API instances to try (main often times out) */
+const OVERPASS_INSTANCES = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
+]
+
 /**
  * Search places using Overpass API (OpenStreetMap) - completely free, no API key needed
  * Returns places near a location or matching a query
@@ -292,88 +303,79 @@ async function searchPlacesOSM(q: string, lat?: number, lng?: number, limit = 20
     
     // If we have coordinates, search around that location
     if (typeof lat === 'number' && typeof lng === 'number') {
-      // Enhanced Overpass query to handle ANY place type
-      // Includes clubs, bars, hotels, attractions, restaurants, shops, etc.
+      // Simplified Overpass query - fewer union types = faster, less likely to timeout
       const query = `
-        [out:json][timeout:15];
+        [out:json][timeout:10];
         (
           node["name"]["tourism"](around:${radiusM},${lat},${lng});
           node["name"]["amenity"](around:${radiusM},${lat},${lng});
           node["name"]["shop"](around:${radiusM},${lat},${lng});
-          node["name"]["leisure"](around:${radiusM},${lat},${lng});
-          node["name"]["club"](around:${radiusM},${lat},${lng});
           way["name"]["tourism"](around:${radiusM},${lat},${lng});
           way["name"]["amenity"](around:${radiusM},${lat},${lng});
-          way["name"]["building"](around:${radiusM},${lat},${lng});
         );
-        out body ${limit * 3} center;
+        out body ${limit * 2} center;
       `.trim()
       
-      try {
-        const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: `data=${encodeURIComponent(query)}`,
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        }, 12000)
-        
-        if (!res.ok) {
-          console.warn('Overpass API failed:', res.status, res.statusText)
-          return []
+      for (const baseUrl of OVERPASS_INSTANCES) {
+        try {
+          const res = await fetchWithTimeout(baseUrl, {
+            method: 'POST',
+            body: `data=${encodeURIComponent(query)}`,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          }, 8000)
+          
+          if (!res.ok) {
+            console.warn(`Overpass ${baseUrl} failed:`, res.status, res.statusText)
+            continue
+          }
+          
+          const data = await res.json()
+          const elements = data?.elements ?? []
+          
+          if (!elements.length) {
+            console.warn('No results from Overpass API for', { lat, lng, radiusM })
+            continue
+          }
+          
+          const places = elements
+            .filter((el: any) => el.tags?.name)
+            .slice(0, limit)
+            .map((el: any) => {
+              const itemLat = el.lat ?? el.center?.lat
+              const itemLng = el.lon ?? el.center?.lon
+              const category = el.tags.tourism || el.tags.amenity || el.tags.shop || 'place'
+              const addressParts = [
+                el.tags['addr:housenumber'],
+                el.tags['addr:street'],
+                el.tags['addr:city'] || el.tags['addr:suburb'],
+                el.tags['addr:country']
+              ].filter(Boolean)
+              return {
+                id: `osm-${el.type}-${el.id}`,
+                name: el.tags.name,
+                category,
+                rating: null,
+                lat: itemLat,
+                lng: itemLng,
+                address: addressParts.length > 0 ? addressParts.join(', ') : null,
+                photoRef: null,
+              }
+            })
+            .filter((p: any) => p.lat != null && p.lng != null)
+          
+          if (places.length > 0) {
+            console.log(`Overpass (${baseUrl}) found ${places.length} places`)
+            return places
+          }
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            console.warn(`Overpass ${baseUrl} timeout`)
+          } else {
+            console.warn(`Overpass ${baseUrl} error:`, err.message)
+          }
         }
-        
-        const data = await res.json()
-        const elements = data?.elements ?? []
-        
-        if (!elements.length) {
-          console.warn('No results from Overpass API for', { lat, lng, radiusM })
-          return []
-        }
-        
-        return elements
-          .filter((el: any) => el.tags?.name)
-          .slice(0, limit)
-          .map((el: any) => {
-            // For ways, use center point if available
-            const itemLat = el.lat ?? el.center?.lat
-            const itemLng = el.lon ?? el.center?.lon
-            
-            // Get the most relevant category
-            const category = el.tags.tourism 
-              || el.tags.amenity 
-              || el.tags.leisure 
-              || el.tags.shop
-              || el.tags.club
-              || el.tags.building
-              || 'place'
-            
-            // Build address from OSM tags
-            const addressParts = [
-              el.tags['addr:housenumber'],
-              el.tags['addr:street'],
-              el.tags['addr:city'] || el.tags['addr:suburb'],
-              el.tags['addr:country']
-            ].filter(Boolean)
-            
-            return {
-              id: `osm-${el.type}-${el.id}`,
-              name: el.tags.name,
-              category: category,
-              rating: null,
-              lat: itemLat,
-              lng: itemLng,
-              address: addressParts.length > 0 ? addressParts.join(', ') : null,
-              photoRef: null,
-            }
-          })
-          .filter((p: any) => p.lat != null && p.lng != null) // Only return items with coordinates
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.warn('Overpass API timeout after 12s')
-        } else {
-          console.warn('Overpass API error:', err.message)
-        }
-        return []
       }
+      return []
     }
     
     // Otherwise, we need coordinates - try to geocode the query
@@ -465,6 +467,51 @@ async function geocodeLocation(text: string) {
   } catch (err) {
     console.warn('geocodeLocation failed', err)
     return null
+  }
+}
+
+/**
+ * Search places using Nominatim (OpenStreetMap) - free, no API key, good for named places
+ * Works for queries like "Eiffel Tower", "restaurants Paris", "Tokyo Skytree"
+ */
+async function searchPlacesNominatim(q: string, limit = 20): Promise<any[]> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=${Math.min(limit, 40)}&addressdetails=1`
+    const res = await fetchWithTimeout(url, {
+      headers: { 'User-Agent': 'SmartTravelApp/1.0 (travel discovery)' }
+    }, 6000)
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data) || !data.length) return []
+    const places = data.slice(0, limit).map((p: any) => {
+      const lat = parseFloat(p.lat)
+      const lng = parseFloat(p.lon)
+      if (isNaN(lat) || isNaN(lng)) return null
+      const addr = p.address ?? {}
+      const addressParts = [
+        addr.road,
+        addr.suburb || addr.neighbourhood || addr.city_district,
+        addr.city || addr.town || addr.village,
+        addr.country
+      ].filter(Boolean)
+      return {
+        id: `nominatim-${p.place_id}`,
+        name: p.name || p.display_name?.split(',')[0]?.trim() || 'Place',
+        category: p.type || p.class || 'place',
+        rating: null,
+        lat,
+        lng,
+        address: addressParts.length > 0 ? addressParts.join(', ') : p.display_name || null,
+        photoRef: null,
+      }
+    }).filter(Boolean)
+    if (places.length > 0) {
+      console.log(`Nominatim found ${places.length} places for "${q}"`)
+    }
+    return places
+  } catch (err) {
+    console.warn('Nominatim search failed:', err)
+    return []
   }
 }
 
@@ -940,15 +987,20 @@ server.post(
       return { refined, items: cachedResult }
     }
 
-    // Try Foursquare first (better results), fall back to OSM
+    // Try Foursquare first (better results), then OSM, then Nominatim
     let places = await searchPlacesFoursquare(refined, _lat, _lng, limit, radius)
     
-    // If Foursquare not configured or failed, use OSM as fallback
     if (places === null || places.length === 0) {
       console.log('Using OSM fallback for search')
       places = await searchPlacesOSM(refined, _lat, _lng, limit, radius)
     } else {
       console.log('Using Foursquare results:', places.length, 'places found')
+    }
+    
+    // Final fallback: Nominatim place search (works for named places, landmarks, etc.)
+    if (places.length === 0) {
+      console.log('Using Nominatim fallback for search')
+      places = await searchPlacesNominatim(refined, limit)
     }
 
     const normalized: any[] = []
