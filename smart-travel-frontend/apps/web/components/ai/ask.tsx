@@ -1,6 +1,6 @@
 'use client'
 import * as React from 'react'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -20,11 +20,11 @@ export default function AskAI() {
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-black/10 bg-white/70 p-4 dark:border-white/15 dark:bg-white/5">
+    <div className="glass space-y-3 p-4">
       <Textarea value={q} onChange={(e) => setQ(e.target.value)} />
       <Button onClick={run} className="btn">Ask AI</Button>
       {ans && (
-        <div className="rounded-xl border border-black/10 bg-white/70 p-3 text-sm leading-6 dark:border-white/15 dark:bg-white/5 whitespace-pre-wrap">
+        <div className="content-subtle p-3 text-sm leading-6 whitespace-pre-wrap text-[rgb(var(--text))]">
           {ans}
         </div>
       )}

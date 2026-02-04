@@ -7,7 +7,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Camera, Loader2, ArrowLeft, ImageOff } from 'lucide-react'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -65,7 +65,7 @@ async function addEntry(id: string, payload: AddEntryPayload, email: string) {
       // ignore parse errors
     }
     const error = new Error(message)
-    ;(error as any).status = r.status
+      ; (error as any).status = r.status
     throw error
   }
   return r.json()

@@ -84,7 +84,7 @@ Populate with:
 - Supabase project URL, service role key, storage bucket.
 - Google OAuth client ID/secret (web).
 - Google Maps / Places API key.
-- Gemini / Google AI Studio key & model (for AI itinerary features).
+- Groq API key (for AI travel suggestions and query refinement).
 
 Extended guidance: `docs/ENVIRONMENT.md`.
 

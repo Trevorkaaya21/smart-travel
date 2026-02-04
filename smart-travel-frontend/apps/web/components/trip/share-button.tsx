@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 type Props = {
   tripId: string

@@ -3,25 +3,40 @@ import './globals.css'
 import Providers from '@/components/providers'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
-export const metadata = { 
+export const metadata = {
   title: 'Smart Travel - Plan Smarter Trips',
-  description: 'AI-powered travel planning with Google Maps integration. Create personalized itineraries, discover amazing places, and share your adventures.',
-  keywords: 'travel planning, itinerary, AI travel, trip planner, travel app',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+  description: 'AI-powered travel planning. Discover restaurants, hotels, and attractions. Create itineraries, save favorites, and share your adventures.',
+  keywords: 'travel planning, itinerary, AI travel, trip planner, discover places, travel app',
+  openGraph: {
+    title: 'Smart Travel - Plan Smarter Trips',
+    description: 'AI-powered travel planning. Discover places, create itineraries, and share your adventures.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Smart Travel',
+    description: 'AI-powered travel planning. Discover places and create itineraries.',
+  },
+  manifest: '/manifest.json',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#8b5cf6' },
-    { media: '(prefers-color-scheme: dark)', color: '#a855f7' }
-  ]
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-screen antialiased">
         <ErrorBoundary>

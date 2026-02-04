@@ -16,15 +16,13 @@
         "GOOGLE_CLIENT_SECRET",
         "OPENTRIPMAP_API_KEY",
         "GEOAPIFY_KEY",
-        "GEMINI_API_KEY",
-        "GOOGLE_GENAI_API_KEY",
-        "GOOGLE_AI_STUDIO_API_KEY",
+        "GROQ_API_KEY",
+        "GROQ_MODEL",
         "SUPABASE_URL",
         "SUPABASE_ANON_KEY",
         "SUPABASE_SERVICE_ROLE",
         "DATABASE_URL",
-        "GOOGLE_PLACES_API_KEY",
-        "GOOGLE_AI_STUDIO_MODEL"
+        "GOOGLE_PLACES_API_KEY"
       ],
       "outputs": [
         "dist/**",

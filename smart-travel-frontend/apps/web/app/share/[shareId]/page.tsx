@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 import { toast } from 'sonner'
 
 export default function PublicSharePage() {

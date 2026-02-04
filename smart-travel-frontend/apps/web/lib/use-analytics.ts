@@ -9,7 +9,7 @@ export function useAnalytics() {
   useEffect(() => {
     // Track page views
     if (typeof window !== 'undefined' && (window as any).gtag) {
-      ;(window as any).gtag('config', process.env.NEXT_PUBLIC_GA_ID, {
+      ; (window as any).gtag('config', process.env.NEXT_PUBLIC_GA_ID, {
         page_path: pathname,
       })
     }
@@ -17,7 +17,7 @@ export function useAnalytics() {
 
   const trackEvent = (eventName: string, params?: Record<string, any>) => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
-      ;(window as any).gtag('event', eventName, params)
+      ; (window as any).gtag('event', eventName, params)
     }
   }
 

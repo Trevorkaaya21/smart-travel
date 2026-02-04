@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +9,8 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { API_BASE } from '@/lib/configure'
+import { Home } from 'lucide-react'
+import { API_BASE } from '@/lib/api'
 import { ShareButton } from '@/components/trip/share-button'
 import { TripChatPanel } from '@/components/trip/trip-chat'
 import { Input } from '@/components/ui/input'
@@ -118,7 +120,7 @@ function DayColumn(props: { day: number; children: React.ReactNode }) {
   return (
     <div
       ref={setNodeRef}
-      className={`timeline-column ${isOver ? 'ring-2 ring-indigo-400/40' : ''}`}
+      className={`timeline-column ${isOver ? 'ring-2 ring-[rgb(var(--accent))]/40' : ''}`}
     >
       <div className="mb-2 text-sm font-semibold opacity-80">Day {props.day}</div>
       {props.children}
@@ -396,12 +398,32 @@ export default function TripPage() {
     reorderMut.mutate({ day: destDay, order: nextIds })
   }
 
+  const tripName = tripQ.data?.trip?.name ?? 'Trip'
+
   return (
     <main className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">Trip</h1>
-          <span className="text-xs opacity-60">{tripId}</span>
+      <nav className="flex flex-wrap items-center gap-2 text-sm text-[rgb(var(--muted))]" aria-label="Breadcrumb">
+        <Link href="/dashboard" className="transition hover:text-[rgb(var(--text))]">Dashboard</Link>
+        <span aria-hidden>/</span>
+        <Link href="/dashboard/trips" className="transition hover:text-[rgb(var(--text))]">My Trips</Link>
+        <span aria-hidden>/</span>
+        <span className="font-medium text-[rgb(var(--text))]" aria-current="page">{tripName}</span>
+      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="btn btn-ghost inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[var(--glass-bg)]"
+            aria-label="Back to dashboard"
+          >
+            <Home className="h-4 w-4" />
+            Home
+          </Link>
+          <div className="h-5 w-px bg-[rgb(var(--border))]/30" aria-hidden />
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-[rgb(var(--text))]">{tripName}</h1>
+            <span className="text-xs text-[rgb(var(--muted))]">{tripId}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {tripQ.data?.trip && (
@@ -411,9 +433,9 @@ export default function TripPage() {
               initialShareId={tripQ.data.trip.share_id ?? null}
             />
           )}
-          <a href="/dashboard" className="btn">
-            ← Back
-          </a>
+          <Link href="/dashboard/trips" className="btn btn-ghost rounded-xl px-3 py-2 text-sm font-medium">
+            My Trips
+          </Link>
         </div>
       </div>
 
@@ -486,8 +508,8 @@ export default function TripPage() {
               </DayColumn>
             )
           })}
-    </div>
-  </DndContext>
+        </div>
+      </DndContext>
 
       {tripId ? <TripChatPanel tripId={tripId} /> : null}
     </main>

@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 import {
   DropdownMenu,
   DropdownMenuContent,

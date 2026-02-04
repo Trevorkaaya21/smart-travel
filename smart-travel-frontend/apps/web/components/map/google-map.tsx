@@ -10,13 +10,18 @@ type Marker = {
   lng?: number | null
 }
 
-export function GoogleMap({ markers }: { markers: Marker[] }) {
+export function GoogleMap({ markers, onError }: { markers: Marker[]; onError?: () => void }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const mapNodeRef = React.useRef<HTMLDivElement | null>(null)
   const mapRef = React.useRef<google.maps.Map | null>(null)
   const markerRefs = React.useRef<google.maps.Marker[]>([])
   const [ready, setReady] = React.useState(false)
   const [errored, setErrored] = React.useState(false)
+
+  const handleError = React.useCallback(() => {
+    setErrored(true)
+    onError?.()
+  }, [onError])
 
   React.useEffect(() => {
     let cancelled = false
@@ -40,6 +45,18 @@ export function GoogleMap({ markers }: { markers: Marker[] }) {
       }
     }
 
+    function handleMapsError() {
+      if (!cancelled) handleError()
+    }
+
+    const onWindowError = (e: ErrorEvent) => {
+      const msg = (e.message ?? '').toLowerCase()
+      if (msg.includes('billingnotenabled') || msg.includes('billing_not_enabled') || msg.includes('maps api error')) {
+        handleMapsError()
+      }
+    }
+    window.addEventListener('error', onWindowError)
+
     loadGoogleMaps()
       .then((maps) => {
         if (cancelled) return
@@ -57,18 +74,17 @@ export function GoogleMap({ markers }: { markers: Marker[] }) {
           })
           mapRef.current = map
           setReady(true)
-        } catch (err) {
-          console.warn('Google Maps init failed', err)
+        } catch (_err) {
           if (!cancelled) setErrored(true)
         }
       })
-      .catch((err) => {
-        console.warn('Google Maps failed to load', err)
-        if (!cancelled) setErrored(true)
+      .catch(() => {
+        if (!cancelled) handleError()
       })
 
     return () => {
       cancelled = true
+      window.removeEventListener('error', onWindowError)
       if (markerRefs.current.length) {
         markerRefs.current.forEach((marker) => {
           try {
@@ -100,7 +116,7 @@ export function GoogleMap({ markers }: { markers: Marker[] }) {
       }
       mapNodeRef.current = null
     }
-  }, [])
+  }, [handleError])
 
   React.useEffect(() => {
     if (!ready) return
@@ -137,13 +153,18 @@ export function GoogleMap({ markers }: { markers: Marker[] }) {
     map.fitBounds(bounds, 80)
   }, [markers, ready])
 
-  if (errored) {
+  if (errored && !onError) {
     return (
-      <div className="ui-glass flex h-[520px] w-full items-center justify-center rounded-3xl text-sm text-slate-200/70">
-        Google Maps unavailable. Try again later.
+      <div className="ui-glass flex h-[520px] w-full flex-col items-center justify-center gap-2 rounded-3xl px-4 text-center text-sm text-[rgb(var(--muted))]">
+        <p>Map unavailable.</p>
+        <p className="text-xs">
+          Enable billing for Maps in Google Cloud, or check your API key.
+        </p>
       </div>
     )
   }
+
+  if (errored && onError) return null
 
   return (
     <div

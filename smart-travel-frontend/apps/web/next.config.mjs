@@ -1,5 +1,21 @@
+/**
+ * Next.js config for Smart Travel web app.
+ * Tuned for production: compression, image optimization, bundle size.
+ * @see https://nextjs.org/docs/app/api-reference/config/next-config-js
+ */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { serverActions: { allowedOrigins: ['localhost:3000'] } }
+  reactStrictMode: true,
+  compress: true,
+  poweredByHeader: false,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+  experimental: {
+    serverActions: { allowedOrigins: ['localhost:3000'] },
+    optimizePackageImports: ['lucide-react'],
+  },
 }
 export default nextConfig

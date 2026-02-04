@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 type Props = {
   tripId: string

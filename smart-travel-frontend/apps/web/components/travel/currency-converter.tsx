@@ -3,8 +3,6 @@
 import { ArrowLeftRight, DollarSign } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
-import { PremiumGate } from '@/components/premium/premium-gate'
-
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
   { code: 'EUR', symbol: '€', name: 'Euro' },
@@ -57,8 +55,7 @@ export function CurrencyConverter({ defaultFrom = 'USD', defaultTo = 'EUR' }: Cu
   const toCurrencyData = CURRENCIES.find(c => c.code === toCurrency)
 
   return (
-    <PremiumGate feature="Currency converter">
-      <div className="content-card p-5">
+    <div className="content-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <DollarSign className="h-5 w-5 text-[rgb(var(--accent))]" />
           <h3 className="text-sm font-semibold text-[rgb(var(--text))]">Currency Converter</h3>
@@ -139,6 +136,5 @@ export function CurrencyConverter({ defaultFrom = 'USD', defaultTo = 'EUR' }: Cu
           )}
         </div>
       </div>
-    </PremiumGate>
   )
 }

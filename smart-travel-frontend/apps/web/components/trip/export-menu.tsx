@@ -1,6 +1,6 @@
 'use client'
 
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 export function ExportMenu({ tripId }: { tripId: string }) {
   const csvUrl = `${API_BASE}/v1/trips/${tripId}/export.csv`

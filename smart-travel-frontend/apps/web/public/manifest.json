@@ -1,0 +1,9 @@
+{
+  "name": "Smart Travel",
+  "short_name": "Smart Travel",
+  "description": "AI-powered travel planning. Discover places, create itineraries, and share your adventures.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#06b6d4"
+}

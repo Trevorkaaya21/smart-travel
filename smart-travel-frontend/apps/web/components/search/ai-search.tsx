@@ -3,11 +3,17 @@
 import * as React from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { Sparkles, Compass, Heart, MapPin } from 'lucide-react'
+import { Wand2, Compass, Heart, MapPin } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDefaultTrip } from '@/lib/useDefaultTrip'
 import { useGuest } from '@/lib/useGuest'
-import { GoogleMap } from '@/components/map/google-map'
+import dynamic from 'next/dynamic'
+
+// Use free OpenStreetMap with Leaflet
+const LeafletMap = dynamic(
+  () => import('@/components/map/leaflet-map').then((m) => m.LeafletMap),
+  { ssr: false }
+)
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -32,6 +38,14 @@ const PROMPTS = [
   'Family friendly weekend in Barcelona',
   'Hidden art galleries in New York',
   'Nightlife hotspots in Berlin',
+  'Coffee shops in Paris',
+  'Best clubs in Miami',
+  'Rooftop bars in New York',
+  'Sushi restaurants in Tokyo',
+  'Beach resorts in Bali',
+  'Luxury hotels in Dubai',
+  'Street food markets in Bangkok',
+  'Museums in London',
 ]
 
 function resolveEmail(sessionEmail?: string | null): string | undefined {
@@ -104,19 +118,19 @@ export default function AiSearch() {
   React.useEffect(() => {
     if (!email || isGuest) return
     let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/v1/favorites?user_email=${encodeURIComponent(email)}`, { cache: 'no-store' })
-        if (!res.ok) return
-        const data = (await res.json()) as { favorites?: { place_id: string }[] }
-        if (cancelled) return
-        const next: Record<string, boolean> = {}
-        for (const fav of data.favorites ?? []) next[fav.place_id] = true
-        setFavoriteIds(next)
-      } catch (err) {
-        console.warn('Could not load favorites', err)
-      }
-    })()
+      ; (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/v1/favorites?user_email=${encodeURIComponent(email)}`, { cache: 'no-store' })
+          if (!res.ok) return
+          const data = (await res.json()) as { favorites?: { place_id: string }[] }
+          if (cancelled) return
+          const next: Record<string, boolean> = {}
+          for (const fav of data.favorites ?? []) next[fav.place_id] = true
+          setFavoriteIds(next)
+        } catch (err) {
+          console.warn('Could not load favorites', err)
+        }
+      })()
     return () => {
       cancelled = true
     }
@@ -235,13 +249,13 @@ export default function AiSearch() {
         }
         throw new Error(extractErrorMessage(raw, res.status))
       }
-      toast.success('Added to trip! ✨', { 
+      toast.success('Added to trip', {
         description: place.name,
         duration: 3000,
       })
       setAddedTripIds((prev) => ({ ...prev, [place.id]: true }))
-      queryClient.invalidateQueries({ queryKey: ['trip-items', defaultTripId] }).catch(() => {})
-      queryClient.invalidateQueries({ queryKey: ['trip', defaultTripId] }).catch(() => {})
+      queryClient.invalidateQueries({ queryKey: ['trip-items', defaultTripId] }).catch(() => { })
+      queryClient.invalidateQueries({ queryKey: ['trip', defaultTripId] }).catch(() => { })
     } catch (err) {
       console.error(err)
       const message = err instanceof Error ? err.message : 'Request failed'
@@ -291,7 +305,7 @@ export default function AiSearch() {
           return next
         })
       } else {
-        toast.success('Saved to favorites! ❤️', { 
+        toast.success('Saved to favorites! ❤️', {
           description: place.name,
           duration: 3000,
         })
@@ -311,107 +325,92 @@ export default function AiSearch() {
     .map(p => ({ id: p.id, name: p.name, lat: p.lat!, lng: p.lng! }))
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="space-y-6">
-        <div className="content-card group">
-          <div className="flex items-start gap-4">
-            <div className="ui-liquid-icon">
-              <Sparkles className="h-5 w-5 text-[rgb(var(--accent))]" />
+    <div className="space-y-6">
+      {/* Search Section */}
+      <div className="content-card">
+        <div className="flex items-start gap-4">
+          <div className="ui-liquid-icon">
+            <Wand2 className="h-5 w-5 text-[rgb(var(--accent))]" />
+          </div>
+          <div className="space-y-4 flex-1">
+            <div>
+              <h2 className="text-2xl font-bold text-[rgb(var(--text))] mb-2">AI-Powered Travel Discovery</h2>
+              <p className="text-sm leading-relaxed text-[rgb(var(--muted))]">
+                Describe your perfect trip and our AI finds the best spots instantly. From hidden gems to must-see landmarks.
+              </p>
             </div>
-            <div className="space-y-4 flex-1">
-              <div>
-                <h2 className="text-2xl font-bold text-[rgb(var(--text))] mb-2">Discover with Google AI Studio</h2>
-                <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
-                  Ask for vibes, budget, or activities. We refine your idea, surface the best spots, and drop them on the map instantly.
-                </p>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  runSearch()
-                }}
-                className="flex flex-col gap-3 md:flex-row"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                runSearch()
+              }}
+              className="flex flex-col gap-3 md:flex-row"
+            >
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder='Search for anything: "clubs in Miami", "sushi tokyo", "beach resorts bali"'
+                className="min-h-[56px] flex-1 rounded-2xl text-base input-surface"
+              />
+              <Button
+                type="submit"
+                disabled={loading || isPending}
+                className="btn btn-primary min-h-[56px] rounded-2xl px-8 text-base font-semibold transition-all duration-200 disabled:opacity-60"
               >
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder='Try "48 hours in Lisbon for foodies"'
-                  className="min-h-[56px] flex-1 rounded-2xl text-base input-surface"
-                />
-                <Button
-                  type="submit"
-                  disabled={loading || isPending}
-                  className="btn btn-primary min-h-[56px] rounded-2xl px-8 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-60"
+                {loading || isPending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
+                    Searching…
+                  </span>
+                ) : (
+                  'Search'
+                )}
+              </Button>
+            </form>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {PROMPTS.map(prompt => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => runSearch(prompt)}
+                  className="prompt-chip rounded-full border px-4 py-2 font-medium backdrop-blur-sm transition hover:translate-y-[-2px]"
                 >
-                  {loading || isPending ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Searching…
-                    </span>
-                  ) : (
-                    'Search'
-                  )}
-                </Button>
-              </form>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {PROMPTS.map(prompt => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => runSearch(prompt)}
-                    className="group rounded-full border px-4 py-2 font-medium transition-all duration-200 hover:-translate-y-0.5"
-                    style={{
-                      borderColor: 'rgba(var(--border) / .5)',
-                      background: 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
-                      color: 'color-mix(in oklab, rgb(var(--text)) 75%, rgb(var(--muted)) 25%)',
-                      boxShadow: '0 2px 8px rgba(var(--shadow-color) / .05)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(var(--accent) / .4)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--accent) / .15)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(var(--border) / .5)'
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(var(--shadow-color) / .05)'
-                    }}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+                  {prompt}
+                </button>
+              ))}
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Results Section */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="space-y-4">
           <header className="flex items-center justify-between">
             <div>
               <h3 className="text-xl font-bold text-[rgb(var(--text))] mb-1">Curated results</h3>
-              <p className="text-xs uppercase tracking-[0.3em] text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">Tap to enrich your itinerary</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-[rgb(var(--muted))]">Tap to enrich your itinerary</p>
             </div>
-            <div className="hidden items-center gap-2 text-xs text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)] md:flex">
-              <Compass className="h-4 w-4 text-[rgb(var(--accent))]" />
-              Precision powered by Google Places
-            </div>
+            {items.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+                <Compass className="h-4 w-4 text-[rgb(var(--accent))]" />
+                {items.length} places found
+              </div>
+            )}
           </header>
 
           {error && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+            <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'rgba(var(--error) / 0.4)', background: 'rgba(var(--error) / 0.1)', color: 'rgb(var(--error))' }}>
               {error}
             </div>
           )}
 
           {!items.length && !loading && !isPending ? (
             <div className="content-card p-12 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(var(--accent) / .15), rgba(var(--accent) / .05))',
-                  boxShadow: '0 4px 16px rgba(var(--accent) / .1)'
-                }}
-              >
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ borderWidth: 1, borderColor: 'rgba(var(--accent) / 0.25)', background: 'rgba(var(--accent) / 0.1)' }}>
                 <Compass className="h-8 w-8 text-[rgb(var(--accent))]" />
               </div>
-              <p className="text-sm text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+              <p className="text-sm text-[rgb(var(--muted))]">
                 Search for anywhere in the world and Smart Travel will craft a shortlist of must-see stops.
               </p>
             </div>
@@ -433,20 +432,30 @@ export default function AiSearch() {
             </div>
           )}
         </section>
-      </div>
 
-      <aside className="content-card hidden p-4 xl:flex xl:flex-col">
-        <div className="flex items-center gap-3 px-1 pb-3 text-[color-mix(in_oklab,rgb(var(--text))_80%,rgb(var(--muted))_20%)]">
-          <MapPin className="h-5 w-5" />
-          <div className="text-sm font-medium">Live Map Preview</div>
-        </div>
-        <GoogleMap markers={markers} />
-        <p className="mt-4 text-xs text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
-          Drag the map to explore nearby recommendations. Zoom to unlock hyper-local suggestions.
-        </p>
-      </aside>
+        {/* Map Section - Only show when there are results */}
+        {markers.length > 0 && (
+          <aside className="content-card hidden p-4 xl:flex xl:flex-col">
+            <div className="flex items-center gap-3 px-1 pb-3 text-[rgb(var(--muted))]">
+              <MapPin className="h-5 w-5 text-[rgb(var(--accent))]" />
+              <div className="text-sm font-medium">Map View</div>
+            </div>
+            <DiscoverMapWithFallback markers={markers} />
+            <p className="mt-4 text-xs text-[rgb(var(--muted))]">
+              {markers.length} {markers.length === 1 ? 'location' : 'locations'} shown on map
+            </p>
+          </aside>
+        )}
+      </div>
     </div>
   )
+}
+
+type MapMarker = { id: string; name: string; lat?: number | null; lng?: number | null }
+
+function DiscoverMapWithFallback({ markers }: { markers: MapMarker[] }) {
+  // Use free OpenStreetMap with Leaflet by default
+  return <LeafletMap markers={markers} />
 }
 
 function ResultCard({
@@ -471,16 +480,10 @@ function ResultCard({
   const image =
     (place as any)?.photo ||
     place.photo_url ||
-    `https://images.unsplash.com/placeholder-photos/extra-large.jpg?auto=format&fit=crop&w=900&q=80`
+    `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80`
 
   return (
-    <div className="group overflow-hidden rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-      style={{
-        borderColor: 'rgba(var(--border) / .5)',
-        background: 'linear-gradient(165deg, rgba(var(--surface) / .95), rgba(var(--surface-muted) / .85))',
-        boxShadow: '0 8px 24px rgba(var(--shadow-color) / .1)'
-      }}
-    >
+    <div className="group overflow-hidden rounded-2xl border backdrop-blur-sm transition-all duration-200 hover:translate-y-[-2px]" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <img
           src={image}
@@ -488,7 +491,7 @@ function ResultCard({
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--shadow-color))]/80 via-[rgb(var(--shadow-color))]/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-4 right-4 flex items-start justify-between gap-3">
           <div>
             <div className="text-lg font-bold leading-tight text-white mb-1">{place.name}</div>
@@ -506,7 +509,7 @@ function ResultCard({
 
       <div className="space-y-3 p-5">
         {place.because && (
-          <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+          <p className="text-sm leading-relaxed text-[rgb(var(--muted))]">
             {place.because}
           </p>
         )}
@@ -516,13 +519,13 @@ function ResultCard({
             onClick={onAdd}
             disabled={disableActions || adding}
             className={cn(
-              'btn btn-primary rounded-2xl px-4 py-2 text-xs font-semibold shadow-md hover:shadow-lg transition-all duration-200',
+              'btn btn-primary rounded-2xl px-4 py-2 text-xs font-semibold transition-all duration-200',
               disableActions && 'cursor-not-allowed opacity-60'
             )}
           >
             {adding ? (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
                 Adding…
               </span>
             ) : added ? (
@@ -536,11 +539,11 @@ function ResultCard({
             disabled={disableActions || saving}
             className={cn(
               'inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-semibold transition-all duration-200',
-              favorite 
-                ? 'border-[rgb(var(--accent))]/40 bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))] shadow-md' 
-                : 'border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]',
+              favorite && 'shadow-md',
+              !favorite && 'border-[rgb(var(--border))]/30 bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:border-[rgb(var(--border))]/50 hover:bg-[var(--glass-bg-hover)]',
               disableActions && 'cursor-not-allowed opacity-60'
             )}
+            style={favorite ? { borderColor: 'rgba(var(--accent) / 0.4)', background: 'rgba(var(--accent) / 0.15)', color: 'rgb(var(--accent))' } : undefined}
           >
             <Heart className={cn('h-4 w-4 transition-all duration-200', favorite ? 'fill-current scale-110' : 'stroke-[1.5]')} />
             {saving ? 'Saving…' : favorite ? 'Favorited' : 'Save'}

@@ -192,7 +192,8 @@ function FavoriteCard({ favorite, removing, onRemove }: { favorite: Favorite; re
           <button
             onClick={onRemove}
             disabled={removing}
-            className="btn btn-ghost rounded-2xl px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label={removing ? 'Removing from favorites' : `Remove ${place?.name ?? 'place'} from favorites`}
+            className="btn btn-ghost rounded-2xl px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent))] focus-visible:outline-none"
           >
             {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartOff className="h-4 w-4 text-[rgb(var(--accent))]" />}
             Remove

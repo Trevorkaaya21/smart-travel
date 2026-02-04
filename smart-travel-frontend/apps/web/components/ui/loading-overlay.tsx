@@ -20,15 +20,7 @@ export function LoadingOverlay({ message = 'Loading...', className }: LoadingOve
       }}
     >
       <div className="content-card flex flex-col items-center gap-4 p-8 animate-scale-in">
-        <div className="relative">
-          <Loader2 className="h-8 w-8 animate-spin text-[rgb(var(--accent))]" />
-          <div
-            className="absolute inset-0 rounded-full animate-pulse"
-            style={{
-              background: 'radial-gradient(circle, rgba(var(--accent) / .3), transparent)',
-            }}
-          />
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-[rgb(var(--accent))]" aria-hidden />
         <p className="text-sm font-medium text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
           {message}
         </p>

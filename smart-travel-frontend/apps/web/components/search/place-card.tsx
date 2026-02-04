@@ -3,8 +3,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api } from '@/lib/api'
+import { api, API_BASE } from '@/lib/api'
 
 type Place = {
   id: string
@@ -166,15 +167,44 @@ export function PlaceCard({ place, defaultTripId }: { place: Place; defaultTripI
     }
   }
 
-  const heroImage = typeof place.photo === 'string' && place.photo.length > 0
-    ? place.photo
-    : typeof place.photo_url === 'string' && place.photo_url.length > 0
-      ? place.photo_url
-      : null
+  const hasBuiltInPhoto =
+    (typeof place.photo === 'string' && place.photo.length > 0) ||
+    (typeof place.photo_url === 'string' && place.photo_url.length > 0)
+  const heroImage =
+    typeof place.photo === 'string' && place.photo.length > 0
+      ? place.photo
+      : typeof place.photo_url === 'string' && place.photo_url.length > 0
+        ? place.photo_url
+        : null
+
+  const { data: placeImage } = useQuery({
+    queryKey: ['place-image', place.name],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/v1/place-image?q=${encodeURIComponent(place.name)}`
+      )
+      if (!res.ok) return null
+      const d = await res.json()
+      return d?.url ? { url: d.url, credit: d.credit } : null
+    },
+    enabled: !hasBuiltInPhoto && !!place.name?.trim(),
+    staleTime: 1000 * 60 * 60,
+  })
+
+  const displayImage = heroImage ?? placeImage?.url ?? null
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden backdrop-blur-xl">
-      {heroImage && <img src={heroImage} alt={place.name} className="h-40 w-full object-cover" />}
+      {displayImage && (
+        <div className="relative">
+          <img src={displayImage} alt={place.name} className="h-40 w-full object-cover" />
+          {placeImage?.credit && (
+            <p className="absolute bottom-1 right-1 text-[10px] text-white/80 drop-shadow-md">
+              {placeImage.credit}
+            </p>
+          )}
+        </div>
+      )}
       <div className="space-y-2 p-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{place.name}</h3>

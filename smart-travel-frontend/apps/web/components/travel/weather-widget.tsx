@@ -2,8 +2,6 @@
 
 import { Cloud, Sun, CloudRain, Wind, Droplets, Thermometer } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { PremiumGate } from '@/components/premium/premium-gate'
-
 interface WeatherData {
   temp: number
   condition: string
@@ -58,8 +56,7 @@ export function WeatherWidget({ city, date }: WeatherWidgetProps) {
   }
 
   return (
-    <PremiumGate feature="Weather forecasts">
-      <div className="content-card p-5">
+    <div className="content-card p-5">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)] mb-1">
@@ -96,6 +93,5 @@ export function WeatherWidget({ city, date }: WeatherWidgetProps) {
           </div>
         </div>
       </div>
-    </PremiumGate>
   )
 }

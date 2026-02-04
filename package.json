@@ -11,11 +11,12 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "e2e": "turbo run e2e",
-    "db:up": "supabase start",
-    "db:push": "supabase db push",
+    "db:up": "pnpm exec supabase start",
+    "db:push": "pnpm exec supabase db push",
     "db:seed": "node smart-travel-backend/db/seeds/seed.mjs"
   },
   "devDependencies": {
+    "supabase": "^2.72.0",
     "@eslint/js": "^9.37.0",
     "@next/eslint-plugin-next": "^15.0.0-0",
     "@types/node": "^24.9.2",

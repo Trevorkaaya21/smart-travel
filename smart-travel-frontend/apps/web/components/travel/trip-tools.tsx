@@ -31,9 +31,6 @@ export function TripTools({ tripId, destination, startDate, days = 3, budget }: 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-[rgb(var(--text))]">Travel Tools</h2>
-        <span className="text-xs text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">
-          Premium features
-        </span>
       </div>
 
       {/* Weather Widget */}

@@ -4,7 +4,6 @@ import { DollarSign, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { PremiumGate } from '@/components/premium/premium-gate'
 import { cn } from '@/lib/utils'
 
 interface Expense {
@@ -55,8 +54,7 @@ export function BudgetTracker({ tripId: _tripId, budget: initialBudget = 0 }: Bu
   }
 
   return (
-    <PremiumGate feature="Budget tracker">
-      <div className="content-card p-5">
+    <div className="content-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <DollarSign className="h-5 w-5 text-[rgb(var(--accent))]" />
           <h3 className="text-sm font-semibold text-[rgb(var(--text))]">Budget Tracker</h3>
@@ -177,6 +175,5 @@ export function BudgetTracker({ tripId: _tripId, budget: initialBudget = 0 }: Bu
           </div>
         </div>
       </div>
-    </PremiumGate>
   )
 }

@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Sparkles, Loader2 } from 'lucide-react'
+import { Send, Bot, User, MessageSquare, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { PremiumGate } from '@/components/premium/premium-gate'
 import { cn } from '@/lib/utils'
 
 interface Message {
@@ -76,12 +75,11 @@ export function TravelAssistant({ tripId: _tripId, destination }: TravelAssistan
   }
 
   return (
-    <PremiumGate feature="AI travel assistant">
-      <div className="content-card p-0 flex flex-col h-[600px]">
+    <div className="content-card p-0 flex flex-col h-[600px]">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-[rgb(var(--border))]/30">
           <div className="ui-liquid-icon">
-            <Sparkles className="h-5 w-5 text-[rgb(var(--accent))]" />
+            <MessageSquare className="h-5 w-5 text-[rgb(var(--accent))]" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-[rgb(var(--text))]">AI Travel Assistant</h3>
@@ -157,35 +155,35 @@ export function TravelAssistant({ tripId: _tripId, destination }: TravelAssistan
             <Button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
+              aria-label="Send message"
               className="btn btn-primary"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden />
             </Button>
           </div>
         </div>
       </div>
-    </PremiumGate>
   )
 }
 
 function generateResponse(userInput: string, destination?: string): string {
   const lowerInput = userInput.toLowerCase()
-  
+
   if (lowerInput.includes('weather')) {
     return `For weather information in ${destination || 'your destination'}, I recommend checking a reliable weather service. Generally, it's good to pack layers and check the forecast a few days before your trip. Would you like me to help you plan your packing list based on the weather?`
   }
-  
+
   if (lowerInput.includes('budget') || lowerInput.includes('cost') || lowerInput.includes('money')) {
     return `Budget planning is crucial! I can help you track expenses. A good rule of thumb is to allocate about 30% for accommodation, 30% for food, 20% for activities, and 20% for transportation. Would you like me to set up a budget tracker for your trip?`
   }
-  
+
   if (lowerInput.includes('pack') || lowerInput.includes('luggage')) {
     return `Great question! For packing, I recommend making a list and checking items off as you pack. Essentials include: travel documents, chargers, weather-appropriate clothing, and any medications. Would you like me to generate a personalized packing list for your trip?`
   }
-  
+
   if (lowerInput.includes('recommend') || lowerInput.includes('suggest') || lowerInput.includes('best')) {
     return `I'd be happy to help with recommendations! For ${destination || 'your destination'}, I suggest exploring local markets, trying authentic cuisine, and visiting cultural landmarks. Would you like specific recommendations based on your interests?`
   }
-  
+
   return `That's a great question! I'm here to help you plan the perfect trip. I can assist with weather forecasts, budget tracking, packing lists, local recommendations, and itinerary optimization. What specific aspect of your trip would you like help with?`
 }

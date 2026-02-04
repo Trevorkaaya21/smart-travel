@@ -5,7 +5,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Wand2, CalendarRange, Save, MapPinned, Sparkles } from 'lucide-react'
+import { Loader2, Wand2, CalendarRange, Save, MapPinned, PenLine, Copy } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -71,6 +71,15 @@ export default function CreateItineraryPage() {
   const [traveler, setTraveler] = React.useState<(typeof TRAVELER_TYPES)[number]>('Couple')
   const [notes, setNotes] = React.useState('')
   const [preferences, setPreferences] = React.useState<string[]>(['Food & markets', 'Museums & art'])
+
+  // Memoize preference toggle function to prevent unnecessary re-renders
+  const togglePreferenceMemo = React.useCallback((pref: string) => {
+    setPreferences(prev =>
+      prev.includes(pref)
+        ? prev.filter(p => p !== pref)
+        : [...prev, pref]
+    )
+  }, [])
   const [loading, setLoading] = React.useState(false)
   const [itinerary, setItinerary] = React.useState<AiItinerary>(DEFAULT_ITINERARY)
   const [saving, setSaving] = React.useState(false)
@@ -78,6 +87,31 @@ export default function CreateItineraryPage() {
 
   const email = (session?.user as any)?.email as string | undefined
   const authenticated = status === 'authenticated' && !!email && !isGuest
+
+  const duplicateDayAtIndex = React.useCallback((index: number) => {
+    setItinerary(prev => {
+      const currentDays = prev.days
+      if (index < 0 || index >= currentDays.length) return prev
+      const dayToCopy = currentDays[index]
+      const copied: AiDay = {
+        day: index + 2,
+        title: dayToCopy.title ? `${dayToCopy.title} (copy)` : undefined,
+        theme: dayToCopy.theme ?? undefined,
+        summary: dayToCopy.summary ?? undefined,
+        entries: (dayToCopy.entries ?? []).map(e => ({ ...e })),
+      }
+      const newDays: AiDay[] = [
+        ...currentDays.slice(0, index + 1),
+        copied,
+        ...currentDays.slice(index + 1),
+      ]
+      newDays.forEach((d, i) => {
+        d.day = i + 1
+      })
+      return { ...prev, days: newDays }
+    })
+    toast.success('Day duplicated', { description: 'The new day was inserted right after.' })
+  }, [])
 
   React.useEffect(() => {
     if (!destination) return
@@ -91,25 +125,17 @@ export default function CreateItineraryPage() {
       <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center animate-fade-in">
         <div className="content-card max-w-lg space-y-6">
           <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div
-                className="absolute inset-0 rounded-full animate-pulse"
-                style={{
-                  background: 'radial-gradient(circle, rgba(var(--accent) / .3), transparent)',
-                }}
-              />
-              <div className="ui-liquid-icon relative z-10">
-                <Sparkles className="h-6 w-6 text-[rgb(var(--accent))]" />
-              </div>
+            <div className="ui-liquid-icon">
+              <PenLine className="h-6 w-6 text-[rgb(var(--accent))]" />
             </div>
             <span className="badge-pro inline-flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-[rgb(var(--accent))]" />
+              <Wand2 className="h-3.5 w-3.5 text-[rgb(var(--accent))]" />
               Create with AI
             </span>
           </div>
           <div className="space-y-3">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-[rgb(var(--accent))] via-[rgb(var(--accent-secondary))] to-[rgb(var(--accent-tertiary))] bg-clip-text text-transparent">
-              Sign in to craft itineraries with Google AI Studio
+            <h1 className="text-3xl font-semibold text-[rgb(var(--text))]">
+              Sign in to craft itineraries
             </h1>
             <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
               Guests can explore Discover. To save personalized itineraries, drag-and-drop days, and sync across devices, connect your Google account.
@@ -128,15 +154,26 @@ export default function CreateItineraryPage() {
   }
 
   async function generate() {
-    if (!destination.trim()) {
-      toast('Add a destination first.')
+    // Input validation
+    const trimmedDestination = destination.trim()
+    if (!trimmedDestination) {
+      toast.error('Destination required', { description: 'Please enter where you\'re traveling to.' })
       return
     }
+    if (trimmedDestination.length < 2) {
+      toast.error('Invalid destination', { description: 'Please enter a valid destination name.' })
+      return
+    }
+    if (days < 1 || days > 10) {
+      toast.error('Invalid duration', { description: 'Please enter a duration between 1 and 10 days.' })
+      return
+    }
+
     setLoading(true)
     setSaving(false)
     try {
       const prompt = buildPrompt({
-        destination,
+        destination: trimmedDestination,
         days,
         startDate,
         pace,
@@ -153,16 +190,29 @@ export default function CreateItineraryPage() {
       })
       if (!res.ok) {
         const raw = await res.text()
-        throw new Error(raw || 'Generation failed')
+        let errorMessage = 'Generation failed'
+        try {
+          const parsed = JSON.parse(raw)
+          errorMessage = parsed.message || parsed.error || errorMessage
+        } catch {
+          if (raw && raw.length < 200) errorMessage = raw
+        }
+        throw new Error(errorMessage)
       }
       const data = await res.json()
       const parsed = parseItinerary(data?.text ?? '')
-      if (!parsed) throw new Error('AI response did not include itinerary JSON.')
+      if (!parsed || !parsed.days?.length) {
+        throw new Error('AI response did not include a valid itinerary. Please try again.')
+      }
       setItinerary(parsed)
       toast.success('Itinerary generated', { description: 'Review the plan below, then save it into your workspace.' })
     } catch (err) {
       console.error(err)
-      toast.error('Could not generate itinerary', { description: err instanceof Error ? err.message : 'Please try again.' })
+      const errorMessage = err instanceof Error ? err.message : 'Please try again.'
+      toast.error('Could not generate itinerary', {
+        description: errorMessage,
+        duration: 5000,
+      })
       setItinerary(DEFAULT_ITINERARY)
     } finally {
       setLoading(false)
@@ -194,32 +244,62 @@ export default function CreateItineraryPage() {
       const { id } = await tripRes.json()
       if (!id) throw new Error('Missing trip id')
 
-      for (const day of itinerary.days) {
-        for (let i = 0; i < (day.entries ?? []).length; i++) {
-          const entry = day.entries[i]
-          const resolved = await resolvePlace(entry, destination)
-          const noteParts = [entry.description, entry.neighborhood, entry.duration].filter(Boolean)
-          const itemRes = await fetch(`${API_BASE}/v1/trips/${id}/items`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-user-email': email,
-            },
-            body: JSON.stringify({
-              place_id: resolved.place_id,
-              day: day.day ?? itinerary.days.indexOf(day) + 1,
-              note: noteParts.join(' • ') || null,
-              place: resolved.place,
-            }),
-          })
-          if (!itemRes.ok) {
-            const raw = await itemRes.text()
-            throw new Error(raw || `Failed to save ${entry.title}`)
-          }
-        }
+      // Parallelize place resolution and item creation for better performance
+      const allEntries = itinerary.days.flatMap((day, dayIndex) =>
+        (day.entries ?? []).map((entry) => ({
+          entry,
+          dayNumber: day.day ?? dayIndex + 1,
+        }))
+      )
+
+      // Resolve all places in parallel (with concurrency limit to avoid overwhelming the API)
+      type ResolvedPlace = Awaited<ReturnType<typeof resolvePlace>>
+      const BATCH_SIZE = 5
+      const resolvedPlaces: ResolvedPlace[] = []
+      for (let i = 0; i < allEntries.length; i += BATCH_SIZE) {
+        const batch = allEntries.slice(i, i + BATCH_SIZE)
+        const batchResults = await Promise.all(
+          batch.map(({ entry }) => resolvePlace(entry, destination))
+        )
+        resolvedPlaces.push(...batchResults)
       }
 
-      toast.success('Itinerary saved! ✨', {
+      // Validate that we have resolved places for all entries
+      if (resolvedPlaces.length !== allEntries.length) {
+        throw new Error('Failed to resolve all places. Please try again.')
+      }
+
+      // Create all items in parallel batches
+      const itemPromises = allEntries.map(async ({ entry, dayNumber }, idx) => {
+        const resolved = resolvedPlaces[idx]
+        if (!resolved) {
+          throw new Error(`Failed to resolve place for ${entry.title}`)
+        }
+        const noteParts = [entry.description, entry.neighborhood, entry.duration].filter(Boolean)
+        const itemRes = await fetch(`${API_BASE}/v1/trips/${id}/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-email': email,
+          },
+          body: JSON.stringify({
+            place_id: resolved.place_id,
+            day: dayNumber,
+            note: noteParts.join(' • ') || null,
+            place: resolved.place,
+          }),
+        })
+        if (!itemRes.ok) {
+          const raw = await itemRes.text()
+          throw new Error(raw || `Failed to save ${entry.title}`)
+        }
+        return itemRes.json()
+      })
+
+      // Wait for all items to be created
+      await Promise.all(itemPromises)
+
+      toast.success('Itinerary saved', {
         description: 'Visit My Trips to fine-tune the schedule.',
         duration: 4000,
       })
@@ -229,7 +309,9 @@ export default function CreateItineraryPage() {
       }, 500)
     } catch (err) {
       console.error(err)
-      toast.error('Could not save itinerary', { description: err instanceof Error ? err.message : 'Try regenerating or saving again.' })
+      toast.error('Could not save itinerary', {
+        description: err instanceof Error ? err.message : 'Try regenerating or saving again.'
+      })
     } finally {
       setSaving(false)
     }
@@ -262,6 +344,9 @@ export default function CreateItineraryPage() {
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder="e.g. Lisbon, Portugal"
                 className="input-surface"
+                aria-label="Destination"
+                autoComplete="off"
+                maxLength={100}
               />
             </Field>
 
@@ -272,6 +357,7 @@ export default function CreateItineraryPage() {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="input-surface"
+                  aria-label="Start date"
                 />
               </Field>
               <Field label="Duration (days)">
@@ -282,6 +368,7 @@ export default function CreateItineraryPage() {
                   value={days}
                   onChange={(e) => setDays(Math.max(1, Math.min(10, Number(e.target.value))))}
                   className="input-surface"
+                  aria-label="Duration in days"
                 />
               </Field>
             </div>
@@ -294,26 +381,26 @@ export default function CreateItineraryPage() {
                     <button
                       key={pref}
                       type="button"
-                      onClick={() => togglePreference(pref, preferences, setPreferences)}
+                      onClick={() => togglePreferenceMemo(pref)}
                       className={cn(
                         'group relative inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200',
                         active
                           ? 'text-[rgb(var(--accent-contrast))]'
-                          : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:-translate-y-1'
+                          : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:translate-y-[-2px]'
                       )}
                       style={{
                         border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
                         background: active
-                          ? 'linear-gradient(135deg, rgb(var(--accent)), color-mix(in srgb, rgb(var(--accent)) 90%, rgb(139, 92, 246)))'
+                          ? 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-secondary)))'
                           : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
                         boxShadow: active
-                          ? '0 8px 24px rgba(var(--accent) / .3), 0 0 0 1px rgba(var(--accent) / .2)'
+                          ? '0 2px 8px rgba(var(--accent) / .25)'
                           : '0 2px 8px rgba(var(--shadow-color) / .05)',
                       }}
                     >
                       {pref}
                       {active && (
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+                        <div className="absolute inset-0 rounded-full bg-white/10 opacity-50" />
                       )}
                     </button>
                   )
@@ -333,14 +420,18 @@ export default function CreateItineraryPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add context like “we land Friday evening”, “prefer late breakfasts”, “celebrating anniversary”"
                 className="textarea-surface min-h-[90px]"
+                aria-label="Additional notes"
+                maxLength={500}
+                rows={4}
               />
             </Field>
           </div>
 
           <Button
             onClick={generate}
-            disabled={loading}
-            className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
+            disabled={loading || !destination.trim()}
+            className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-200"
+            aria-label="Generate itinerary"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2.5 relative z-10">
@@ -353,7 +444,6 @@ export default function CreateItineraryPage() {
                 Generate itinerary
               </span>
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
           </Button>
         </section>
 
@@ -381,51 +471,51 @@ export default function CreateItineraryPage() {
           </header>
 
           {loading ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)] animate-fade-in">
-              <div className="relative">
-                <Loader2 className="h-8 w-8 animate-spin text-[rgb(var(--accent))]" />
-                <div
-                  className="absolute inset-0 rounded-full animate-pulse"
-                  style={{
-                    background: 'radial-gradient(circle, rgba(var(--accent) / .3), transparent)',
-                  }}
-                />
-              </div>
-              <div className="text-center space-y-2">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)] animate-fade-in">
+              <Loader2 className="h-8 w-8 animate-spin text-[rgb(var(--accent))]" aria-hidden />
+              <div className="text-center space-y-3 max-w-md">
                 <p className="text-sm font-medium text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
-                  Coordinating days, balancing energy, and mapping highlights…
+                  Building your itinerary…
                 </p>
-                <div className="flex gap-1 justify-center">
-                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent))] animate-bounce" style={{ animationDelay: '0s' }} />
-                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent-secondary))] animate-bounce" style={{ animationDelay: '0.2s' }} />
-                  <div className="h-2 w-2 rounded-full bg-[rgb(var(--accent-tertiary))] animate-bounce" style={{ animationDelay: '0.4s' }} />
+                <div className="mt-6 space-y-4 w-full">
+                  {Array.from({ length: Math.min(days, 3) }).map((_, i) => (
+                    <div key={i} className="content-subtle space-y-3 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <div className="h-4 w-24 bg-[rgb(var(--surface-muted))]/50 rounded" />
+                        <div className="h-5 w-16 bg-[rgb(var(--surface-muted))]/50 rounded-full" />
+                      </div>
+                      <div className="h-3 w-full bg-[rgb(var(--surface-muted))]/50 rounded" />
+                      <div className="space-y-2">
+                        {Array.from({ length: 3 }).map((_, j) => (
+                          <div key={j} className="h-16 bg-[rgb(var(--surface-muted))]/50 rounded-2xl" />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           ) : itinerary.days.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)] animate-fade-in">
-              <div className="relative">
-                <div
-                  className="absolute inset-0 rounded-full animate-pulse"
-                  style={{
-                    background: 'radial-gradient(circle, rgba(var(--accent) / .2), transparent)',
-                  }}
-                />
-                <MapPinned className="h-12 w-12 text-[rgb(var(--accent))] relative z-10" />
-              </div>
+              <MapPinned className="h-12 w-12 text-[rgb(var(--accent))]" aria-hidden />
               <div className="space-y-2 max-w-sm">
                 <p className="text-sm font-medium">
-                  Your AI itinerary appears here. Tell us where you&apos;re going, pick a vibe, and generate to preview.
+                  Your itinerary appears here. Enter a destination, set your preferences, and generate to preview.
                 </p>
                 <p className="text-xs text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">
-                  ✨ Powered by Google AI Studio
+                  AI-powered suggestions
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex-1 space-y-5 overflow-y-auto pr-2">
-              {itinerary.days.map(day => (
-                <DayCard key={day.day} day={day} />
+              {itinerary.days.map((day, idx) => (
+                <DayCard
+                  key={`day-${idx}-${day.day}`}
+                  day={day}
+                  dayIndex={idx}
+                  onDuplicate={duplicateDayAtIndex}
+                />
               ))}
             </div>
           )}
@@ -438,12 +528,15 @@ export default function CreateItineraryPage() {
                   onChange={(e) => setTripName(e.target.value)}
                   placeholder="AI Weekend in Lisbon"
                   className="input-surface"
+                  aria-label="Trip name"
+                  maxLength={100}
+                  autoComplete="off"
                 />
               </Field>
               <Button
                 onClick={savePlan}
                 disabled={saving}
-                className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="btn btn-primary w-full rounded-2xl px-6 py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-70 transition-all duration-200"
               >
                 {saving ? (
                   <span className="inline-flex items-center gap-2.5">
@@ -474,7 +567,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function ChipSelect<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly T[]; onChange: (value: T) => void }) {
+// Memoized ChipSelect component for better performance
+const ChipSelect = React.memo(function ChipSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string
+  value: T
+  options: readonly T[]
+  onChange: (value: T) => void
+}) {
   return (
     <Field label={label}>
       <div className="grid gap-2">
@@ -489,21 +593,21 @@ function ChipSelect<T extends string>({ label, value, options, onChange }: { lab
                 'group relative flex items-center justify-between rounded-2xl px-4 py-2.5 text-xs font-semibold transition-all duration-200',
                 active
                   ? 'text-[rgb(var(--accent-contrast))]'
-                  : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:-translate-y-1'
+                  : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:translate-y-[-2px]'
               )}
               style={{
                 border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
                 background: active
-                  ? 'linear-gradient(135deg, rgb(var(--accent)), color-mix(in srgb, rgb(var(--accent)) 90%, rgb(139, 92, 246)))'
+                  ? 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-secondary)))'
                   : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
                 boxShadow: active
-                  ? '0 8px 24px rgba(var(--accent) / .3), 0 0 0 1px rgba(var(--accent) / .2)'
+                  ? '0 2px 8px rgba(var(--accent) / .25)'
                   : '0 2px 8px rgba(var(--shadow-color) / .05)',
               }}
             >
               {option}
               {active && (
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+                <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-50" />
               )}
             </button>
           )
@@ -511,54 +615,78 @@ function ChipSelect<T extends string>({ label, value, options, onChange }: { lab
       </div>
     </Field>
   )
-}
+}) as <T extends string>(props: { label: string; value: T; options: readonly T[]; onChange: (value: T) => void }) => JSX.Element
 
-function DayCard({ day }: { day: AiDay }) {
+// Memoized DayCard component for better performance
+const DayCard = React.memo(function DayCard({
+  day,
+  dayIndex,
+  onDuplicate,
+}: {
+  day: AiDay
+  dayIndex: number
+  onDuplicate: (index: number) => void
+}) {
   return (
-    <article className="content-subtle space-y-4 transition-all duration-200 hover:shadow-lg">
+    <article className="content-subtle space-y-4 transition-all duration-200">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1.5">
-          <span className="form-label">Day {day.day}</span>
+          <span className="form-label text-[rgb(var(--muted))]">Day {day.day}</span>
           <h3 className="text-lg font-semibold text-[rgb(var(--text))]">{day.title || `Day ${day.day}`}</h3>
         </div>
-        {day.theme && <span className="badge-pro text-[10px]">{day.theme}</span>}
+        <div className="flex items-center gap-2">
+          {day.theme && <span className="badge-pro text-[10px]">{day.theme}</span>}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onDuplicate(dayIndex)}
+            className="btn btn-ghost h-8 gap-1.5 rounded-xl px-2.5 text-xs font-medium text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]"
+            title="Duplicate day"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Duplicate
+          </Button>
+        </div>
       </div>
       {day.summary && (
-        <p className="text-sm leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">{day.summary}</p>
+        <p className="text-sm leading-relaxed text-[rgb(var(--text))] opacity-90">{day.summary}</p>
       )}
       <div className="space-y-3">
         {(day.entries ?? []).map((entry, idx) => (
           <div
             key={`${entry.title}-${idx}`}
-            className="group rounded-2xl border px-4 py-3.5 text-sm transition-all duration-200 hover:-translate-y-0.5"
+            className="group rounded-2xl border px-4 py-3.5 text-sm transition-shadow duration-200 hover:shadow-[var(--shadow-sm)]"
             style={{
-              borderColor: 'rgba(var(--border) / .5)',
-              background: 'linear-gradient(165deg, rgba(var(--surface) / .9), rgba(var(--surface-muted) / .7))',
-              boxShadow: '0 4px 16px rgba(var(--shadow-color) / .08)',
+              borderColor: 'rgba(var(--border) / 0.4)',
+              background: 'var(--glass-bg)',
+              boxShadow: '0 4px 16px rgba(var(--shadow-color) / 0.12)',
             }}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="font-semibold text-[rgb(var(--text))]">{entry.title}</div>
-              <div className="rounded-full bg-[rgb(var(--accent))]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgb(var(--accent))]">
+              <div className="shrink-0 rounded-full bg-[rgb(var(--accent))]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent))]">
                 {entry.time || 'Flexible'}
               </div>
             </div>
             {entry.description && (
-              <p className="mt-2 text-xs leading-relaxed text-[color-mix(in_oklab,rgb(var(--text))_72%,rgb(var(--muted))_28%)]">{entry.description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-[rgb(var(--text))] opacity-90">
+                {entry.description}
+              </p>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {entry.category && (
-                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                <span className="rounded-lg border border-[rgb(var(--accent))]/25 bg-[rgb(var(--accent))]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--accent))]">
                   #{entry.category}
                 </span>
               )}
               {entry.neighborhood && (
-                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                <span className="rounded-lg border border-[rgb(var(--border))]/4 bg-[rgb(var(--surface-muted))]/50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--text))]">
                   @{entry.neighborhood}
                 </span>
               )}
               {entry.duration && (
-                <span className="rounded-lg bg-[rgb(var(--surface-muted))]/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[color-mix(in_oklab,rgb(var(--text))_70%,rgb(var(--muted))_30%)]">
+                <span className="rounded-lg border border-[rgb(var(--border))]/4 bg-[rgb(var(--surface-muted))]/50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--text))]">
                   {entry.duration}
                 </span>
               )}
@@ -568,12 +696,8 @@ function DayCard({ day }: { day: AiDay }) {
       </div>
     </article>
   )
-}
+})
 
-function togglePreference(pref: string, current: string[], set: (v: string[]) => void) {
-  if (current.includes(pref)) set(current.filter(p => p !== pref))
-  else set([...current, pref])
-}
 
 function buildPrompt(input: {
   destination: string

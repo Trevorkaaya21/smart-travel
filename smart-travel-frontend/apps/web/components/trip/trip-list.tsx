@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ListSkeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
+import { MapPinned } from 'lucide-react'
 
 type Trip = {
   id: string
@@ -329,12 +331,25 @@ export function TripList() {
         </select>
       </div>
 
-      <div className="grid gap-2">
+      <div className="grid gap-2" role="list" aria-label="Your trips">
         {tripsQ.isLoading && (
-          <div className="card">Loading trips…</div>
+          <ListSkeleton count={5} />
         )}
         {!tripsQ.isLoading && sorted.length === 0 && (
-          <div className="card">No trips match your search.</div>
+          <div className="card flex flex-col items-center justify-center py-12 text-center" role="status">
+            <MapPinned className="h-12 w-12 text-[rgb(var(--muted))]/60 mb-4" aria-hidden />
+            <h3 className="font-semibold text-[rgb(var(--text))] mb-1">
+              {filter ? 'No trips match your search' : 'Create your first trip'}
+            </h3>
+            <p className="text-sm text-[rgb(var(--muted))] mb-4 max-w-sm">
+              {filter ? 'Try a different search term.' : 'Discover places, add them to a trip, and start planning your next adventure.'}
+            </p>
+            {!filter && (
+              <Button onClick={() => createMut.mutate()} disabled={createMut.isPending} className="btn btn-primary">
+                {createMut.isPending ? 'Creating…' : 'New Trip'}
+              </Button>
+            )}
+          </div>
         )}
         {sorted.map((t) => (
           <div key={t.id} className="card">

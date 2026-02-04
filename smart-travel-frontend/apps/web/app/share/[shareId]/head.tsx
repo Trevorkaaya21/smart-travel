@@ -1,4 +1,4 @@
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 export default async function Head({ params }: { params: { shareId: string } }) {
   const url = `${API_BASE}/v1/share/${params.shareId}`

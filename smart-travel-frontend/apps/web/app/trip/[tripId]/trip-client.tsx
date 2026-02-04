@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 async function fetchTrip(id: string) {
   const r = await fetch(`${API_BASE}/v1/trips/${id}`, { cache: 'no-store' })

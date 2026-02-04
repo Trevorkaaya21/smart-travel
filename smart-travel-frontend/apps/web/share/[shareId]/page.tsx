@@ -1,7 +1,7 @@
 'use client'
 import * as React from 'react'
 import { useParams } from 'next/navigation'
-import { API_BASE } from '@/lib/configure'
+import { API_BASE } from '@/lib/api'
 
 export default function PublicSharePage() {
   const params = useParams<{ shareId: string }>()

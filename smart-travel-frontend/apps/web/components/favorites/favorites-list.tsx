@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { API_BASE } from '@/lib/api'
@@ -79,10 +80,20 @@ export default function FavoriteList() {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Favorites</h2>
       {favsQ.isLoading && (
-        <div className="card">Loading favorites…</div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card animate-pulse">
+              <div className="h-5 w-2/3 rounded bg-white/10" />
+              <div className="h-4 w-1/2 rounded bg-white/10 mt-2" />
+            </div>
+          ))}
+        </div>
       )}
       {!favsQ.isLoading && favorites.length === 0 && (
-        <div className="card">No favorites yet.</div>
+        <div className="card flex flex-col items-center gap-2 py-8 text-center">
+          <p className="text-sm text-[rgb(var(--muted))]">No favorites yet.</p>
+          <Link href="/dashboard" className="btn btn-ghost text-xs">Explore Discover</Link>
+        </div>
       )}
       <div className="grid gap-2">
         {favorites.map(({ place_id }) => (

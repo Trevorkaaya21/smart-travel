@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -8,12 +9,14 @@ import { API_BASE } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { UserRound, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
+import { UserRound, Loader2, Pencil, ShieldCheck, Trash2, MapPinned, Heart, BarChart3, Map, Camera } from 'lucide-react'
 
 type Profile = {
   display_name?: string | null
   home_base?: string | null
   bio?: string | null
+  avatar_url?: string | null
+  travel_name?: string | null
 }
 
 async function getProfile(email: string) {
@@ -33,6 +36,17 @@ async function saveProfile(payload: Profile, email: string) {
   return res.json()
 }
 
+async function uploadAvatar(email: string, dataUrl: string) {
+  const res = await fetch(`${API_BASE}/v1/profile/avatar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-user-email': email },
+    body: JSON.stringify({ image: dataUrl }),
+  })
+  if (!res.ok) throw new Error('upload_failed')
+  const data = await res.json()
+  return data?.url as string
+}
+
 async function deleteProfile(email: string) {
   const res = await fetch(`${API_BASE}/v1/profile`, {
     method: 'DELETE',
@@ -42,6 +56,22 @@ async function deleteProfile(email: string) {
   return res.json()
 }
 
+type Stats = { trips_count: number; favorites_count: number; places_in_trips_count: number }
+
+async function getStats(email: string): Promise<Stats> {
+  const res = await fetch(`${API_BASE}/v1/stats`, {
+    cache: 'no-store',
+    headers: { 'x-user-email': email },
+  })
+  if (!res.ok) return { trips_count: 0, favorites_count: 0, places_in_trips_count: 0 }
+  const data = await res.json()
+  return {
+    trips_count: Number(data?.trips_count) || 0,
+    favorites_count: Number(data?.favorites_count) || 0,
+    places_in_trips_count: Number(data?.places_in_trips_count) || 0,
+  }
+}
+
 export default function ProfilePage() {
   const { data: session, status } = useSession()
   const email = (session?.user as any)?.email as string | undefined
@@ -49,7 +79,10 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = React.useState('')
   const [homeBase, setHomeBase] = React.useState('')
   const [bio, setBio] = React.useState('')
+  const [travelName, setTravelName] = React.useState('')
   const [editing, setEditing] = React.useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+  const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
   const profileQuery = useQuery({
     queryKey: ['profile', email],
@@ -57,21 +90,36 @@ export default function ProfilePage() {
     enabled: status === 'authenticated' && !!email,
   })
 
+  const statsQuery = useQuery({
+    queryKey: ['stats', email],
+    queryFn: () => getStats(email!),
+    enabled: status === 'authenticated' && !!email,
+  })
+
+  const stats = statsQuery.data ?? { trips_count: 0, favorites_count: 0, places_in_trips_count: 0 }
+  const recapLoading = statsQuery.isLoading
+
   React.useEffect(() => {
     const profile = profileQuery.data
     if (profile) {
       setDisplayName(profile.display_name ?? '')
       setHomeBase(profile.home_base ?? '')
       setBio(profile.bio ?? '')
+      setTravelName(profile.travel_name ?? '')
     } else {
       setDisplayName('')
       setHomeBase('')
       setBio('')
+      setTravelName('')
     }
   }, [profileQuery.data])
 
   const saveMut = useMutation({
-    mutationFn: () => saveProfile({ display_name: displayName, home_base: homeBase, bio }, email!),
+    mutationFn: () =>
+      saveProfile(
+        { display_name: displayName, home_base: homeBase, bio, travel_name: travelName || null },
+        email!
+      ),
     onSuccess: () => {
       toast.success('Profile updated')
       setEditing(false)
@@ -80,6 +128,36 @@ export default function ProfilePage() {
     onError: () => toast.error('Could not save profile right now.'),
   })
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !email) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file (JPEG, PNG, WebP).')
+      return
+    }
+    if (file.size > 1024 * 1024) {
+      toast.error('Image must be under 1MB.')
+      return
+    }
+    setUploadingAvatar(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => resolve(r.result as string)
+        r.onerror = reject
+        r.readAsDataURL(file)
+      })
+      await uploadAvatar(email, dataUrl)
+      toast.success('Profile picture updated')
+      qc.invalidateQueries({ queryKey: ['profile', email] })
+    } catch {
+      toast.error('Could not upload picture.')
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
+
   const deleteMut = useMutation({
     mutationFn: () => deleteProfile(email!),
     onSuccess: () => {
@@ -87,6 +165,7 @@ export default function ProfilePage() {
       setDisplayName('')
       setHomeBase('')
       setBio('')
+      setTravelName('')
       qc.invalidateQueries({ queryKey: ['profile', email] })
     },
     onError: () => toast.error('Unable to delete profile.'),
@@ -132,16 +211,101 @@ export default function ProfilePage() {
         </div>
       </header>
 
+      {/* Travel recap: trips and saved places */}
+      <section className="content-card flex flex-col gap-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgb(var(--accent))]/30 bg-[rgb(var(--accent))]/10 text-[rgb(var(--accent))]">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-[rgb(var(--text))]">Your travel recap</h2>
+            <p className="text-xs text-[rgb(var(--muted))]">A quick snapshot of your Smart Travel activity</p>
+          </div>
+        </div>
+        {recapLoading ? (
+          <div className="flex items-center gap-2 text-sm text-[rgb(var(--muted))]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading…
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Link
+              href="/dashboard/trips"
+              className="content-subtle flex items-center gap-4 rounded-xl p-4 transition-all duration-200 hover:translate-y-[-2px] hover:border-[rgb(var(--accent))]/30"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))]">
+                <MapPinned className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-2xl font-bold text-[rgb(var(--text))]">{stats.trips_count}</div>
+                <div className="text-sm font-medium text-[rgb(var(--muted))]">Trips planned</div>
+              </div>
+            </Link>
+            <Link
+              href="/dashboard/favorites"
+              className="content-subtle flex items-center gap-4 rounded-xl p-4 transition-all duration-200 hover:translate-y-[-2px] hover:border-[rgb(var(--accent))]/30"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))]">
+                <Heart className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-2xl font-bold text-[rgb(var(--text))]">{stats.favorites_count}</div>
+                <div className="text-sm font-medium text-[rgb(var(--muted))]">Places saved</div>
+              </div>
+            </Link>
+            <div className="content-subtle flex items-center gap-4 rounded-xl p-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))]">
+                <Map className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-2xl font-bold text-[rgb(var(--text))]">{stats.places_in_trips_count}</div>
+                <div className="text-sm font-medium text-[rgb(var(--muted))]">Places in trips</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="content-card flex flex-col gap-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/10 text-[rgb(var(--text))]">
-              <UserRound className="h-5 w-5" />
-            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleAvatarChange}
+              aria-label="Upload profile picture"
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[rgb(var(--text))] transition hover:opacity-90 disabled:opacity-60"
+              title="Change profile picture"
+            >
+              {profileQuery.data?.avatar_url ? (
+                <img
+                  src={profileQuery.data.avatar_url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <UserRound className="h-8 w-8" />
+              )}
+              {uploadingAvatar && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </span>
+              )}
+              <span className="absolute bottom-0 right-0 rounded-tl bg-[rgb(var(--accent))] p-1">
+                <Camera className="h-3.5 w-3.5 text-white" />
+              </span>
+            </button>
             <div>
               <div className="text-sm font-semibold">Traveler card</div>
               <div className="form-helper">
-                {editing ? 'Edit mode' : 'View mode'}
+                {editing ? 'Edit mode' : 'View mode'} · Click photo to upload
               </div>
             </div>
           </div>
@@ -170,12 +334,20 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 text-[rgb(var(--text))]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-[rgb(var(--text))]">
           <ProfileField
             label="Display name"
             placeholder="Adventurous Alex"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
+            editing={editing}
+            loading={isLoading}
+          />
+          <ProfileField
+            label="Travel name"
+            placeholder="alex_travels"
+            value={travelName}
+            onChange={(e) => setTravelName(e.target.value)}
             editing={editing}
             loading={isLoading}
           />

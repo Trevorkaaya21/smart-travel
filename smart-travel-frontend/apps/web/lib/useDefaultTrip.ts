@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
-import { API_BASE } from './configure'
+import { API_BASE } from './api'
 
 async function getOrCreateDefaultTrip(email: string) {
   const res = await fetch(

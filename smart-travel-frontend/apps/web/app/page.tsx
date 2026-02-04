@@ -1,132 +1,182 @@
-
-/* apps/web/app/page.tsx */
 'use client'
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useTheme } from 'next-themes'
+import { MapPin, Compass, Share2, CalendarDays } from 'lucide-react'
 
-function resetGuestFlag() {
+const LANDING_STORAGE_KEY = 'st_guest'
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1920&q=80'
+
+function clearGuestFlag() {
   if (typeof window === 'undefined') return
-  window.localStorage.removeItem('st_guest')
+  window.localStorage.removeItem(LANDING_STORAGE_KEY)
 }
 
 export default function LandingPage() {
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
   const [leaving, setLeaving] = React.useState<null | 'auth' | 'guest'>(null)
 
+  React.useEffect(() => setMounted(true), [])
   React.useEffect(() => {
-    resetGuestFlag()
+    clearGuestFlag()
   }, [])
 
   React.useEffect(() => {
     if (!leaving) return
-    const next = leaving === 'guest' ? '/dashboard?guest=1' : '/dashboard'
-    const timer = window.setTimeout(() => {
-      router.push(next)
-    }, 640)
-    return () => window.clearTimeout(timer)
+    const path = leaving === 'guest' ? '/dashboard?guest=1' : '/dashboard'
+    const t = setTimeout(() => router.push(path), 400)
+    return () => clearTimeout(t)
   }, [leaving, router])
 
   const onGuest = React.useCallback(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('st_guest', '1')
+      window.localStorage.setItem(LANDING_STORAGE_KEY, '1')
     }
     setLeaving('guest')
   }, [])
 
   const onSignIn = React.useCallback(() => {
-    resetGuestFlag()
+    clearGuestFlag()
     setLeaving('auth')
     signIn('google', { callbackUrl: '/dashboard' })
   }, [])
 
+  const isDark = mounted && resolvedTheme === 'dark'
+
   return (
-    <main className="relative flex min-h-screen w-full flex-col overflow-hidden text-white">
-      {/* Animated travel video background */}
-      <div className="absolute inset-0">
-        <video
-          className="h-full w-full object-cover"
-          src="https://cdn.coverr.co/videos/coverr-clouds-over-the-alps-2903/1080p.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-900/80" />
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[rgb(var(--bg))] text-[rgb(var(--text))] transition-colors duration-300">
+      {/* Theme-aware hero background */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-[rgb(var(--bg))] transition-colors duration-300"
+        aria-hidden
+      >
+        {isDark ? (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url(${HERO_IMAGE})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/70 to-slate-950/95" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(251,191,36,0.06),transparent_60%)]" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-slate-100/80 to-slate-50" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(245,158,11,0.05),transparent_60%)]" />
+          </>
+        )}
       </div>
 
-      {/* Star overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(transparent,rgba(15,23,42,0.65))]" />
-
-      <AnimatePresence initial={false}>
-        <motion.section
-          key="hero"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0, x: leaving ? '-10%' : '0%' }}
-          exit={{ opacity: 0, x: '-50%' }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 pb-16 pt-20 sm:px-8 md:px-12"
-        >
-          <header className="flex flex-col gap-6 text-center md:text-left">
-            <span className="mx-auto w-fit rounded-full border border-white/30 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/80 backdrop-blur">
-              Introducing Smart Travel
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 pb-20 pt-16 sm:px-8 md:px-10 lg:pt-24">
+        <header className="flex flex-1 flex-col justify-center gap-8 text-center md:text-left">
+          <div
+            className="landing-fade mx-auto flex w-fit items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-sm md:mx-0"
+            style={{ animationDelay: '0.1s', borderColor: 'rgba(var(--border) / 0.25)', background: 'var(--glass-bg)' }}
+          >
+            <Compass className="h-4 w-4 text-[rgb(var(--accent))]" aria-hidden />
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+              Smart Travel
             </span>
-            <h1 className="text-balance text-4xl font-semibold leading-tight text-white md:text-6xl lg:text-7xl">
-              Your AI copilot for unforgettable adventures
-            </h1>
-            <p className="mx-auto max-w-2xl text-balance text-lg text-white/85 md:text-xl">
-              Discover destinations, craft itineraries with Google AI Studio, and manage every detail with a fluid, liquid-glass workspace built for modern explorers.
-            </p>
-          </header>
+          </div>
 
-          <div className="mt-12 flex flex-col items-center gap-4 md:flex-row md:gap-6">
+          <h1
+            className="landing-fade text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+            style={{ animationDelay: '0.2s' }}
+          >
+            Your next adventure,{' '}
+            <span className="block bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 bg-clip-text text-transparent">
+              planned.
+            </span>
+          </h1>
+
+          <p
+            className="landing-fade mx-auto max-w-xl text-lg leading-relaxed text-[rgb(var(--muted))] md:mx-0 md:text-xl"
+            style={{ animationDelay: '0.3s' }}
+          >
+            Discover places with AI, build day‑by‑day itineraries, and keep every trip in one
+            workspace. Start as a guest or sign in to save and sync.
+          </p>
+
+          <div
+            className="landing-fade flex flex-col items-center gap-4 sm:flex-row sm:gap-5"
+            style={{ animationDelay: '0.4s' }}
+          >
             <button
+              type="button"
               onClick={onSignIn}
-              className="ui-glass ui-shine flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl px-6 py-3 text-base font-semibold text-white/95 shadow-xl transition hover:scale-[1.01]"
+              className="btn btn-primary w-full max-w-[280px] gap-3 rounded-2xl px-6 py-3.5 text-base font-semibold sm:max-w-none"
+              aria-label="Sign in with Google"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/20 bg-white/15 text-lg">G</span>
-              <span>Sign in with Google</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-sm font-bold">
+                G
+              </span>
+              Sign in with Google
             </button>
             <button
+              type="button"
               onClick={onGuest}
-              className="ui-glass w-full max-w-xs rounded-2xl border-white/40 px-6 py-3 text-base font-semibold text-white/85 transition hover:border-white/60 hover:text-white"
+              className="btn btn-ghost w-full max-w-[280px] rounded-2xl px-6 py-3.5 text-base font-semibold sm:max-w-none"
+              aria-label="Continue as guest"
             >
-              Continue as Guest
+              Continue as guest
             </button>
           </div>
+        </header>
 
-          <div className="mt-16 grid gap-6 text-sm text-white/80 lg:grid-cols-3">
-            <FeatureCard
-              title="Discover with AI"
-              description="Google-powered insights turn vague ideas into curated destinations, complete with immersive maps and photo-rich highlights."
-            />
-            <FeatureCard
-              title="Build living itineraries"
-              description="Drag, drop, and rearrange plans by day or time. Keep everything synced across devices with real-time glassmorphic boards."
-            />
-            <FeatureCard
-              title="Save memories beautifully"
-              description="Favorites, diary entries, and shared trips live together so you can revisit the story behind every journey."
-            />
-          </div>
-        </motion.section>
-      </AnimatePresence>
+        <section
+          className="landing-fade mt-16 grid gap-6 sm:grid-cols-3 lg:mt-24 lg:gap-8"
+          style={{ animationDelay: '0.5s' }}
+          aria-label="Features"
+        >
+          <FeatureCard
+            icon={MapPin}
+            title="Discover with AI"
+            description="Describe vibes, budgets, or activities. We surface the best spots and drop them on a map."
+          />
+          <FeatureCard
+            icon={CalendarDays}
+            title="Build itineraries"
+            description="Drag-and-drop days, add notes, and keep plans in sync across devices."
+          />
+          <FeatureCard
+            icon={Share2}
+            title="Save & share"
+            description="Favorites, diary entries, and shared trips so you can revisit every journey."
+          />
+        </section>
 
-      <footer className="relative z-10 flex w-full justify-center pb-8 text-xs uppercase tracking-[0.35em] text-white/55">
-        Built to help you travel smarter ✦
-      </footer>
+        <footer
+          className="mt-16 flex justify-center pb-8 text-xs font-medium uppercase tracking-[0.3em] text-[rgb(var(--muted))] lg:mt-24"
+          role="contentinfo"
+        >
+          Built to help you travel smarter
+        </footer>
+      </div>
     </main>
   )
 }
 
-function FeatureCard({ title, description }: { title: string; description: string }) {
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  description: string
+}) {
   return (
-    <div className="ui-glass ui-shine h-full rounded-3xl border border-white/15 bg-white/10 p-6 leading-relaxed backdrop-blur-xl">
-      <h2 className="mb-2 text-base font-semibold text-white">{title}</h2>
-      <p className="text-sm text-white/80">{description}</p>
+    <div className="group flex flex-col gap-4 rounded-2xl border p-6 backdrop-blur-sm transition-all duration-200 hover:translate-y-[-2px]" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl text-[rgb(var(--accent))] transition-colors" style={{ background: 'rgba(var(--accent) / 0.12)' }}>
+        <Icon className="h-6 w-6" aria-hidden />
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight text-[rgb(var(--text))]">{title}</h2>
+      <p className="text-sm leading-relaxed text-[rgb(var(--muted))]">{description}</p>
     </div>
   )
 }
