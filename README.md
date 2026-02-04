@@ -1,180 +1,141 @@
-# Smart Travel 
+# Smart Travel
 
-Smart Travel is a multi-platform travel planning suite composed of:
-
-- A **Next.js 14** web experience with itinerary timelines, trip chat, collaborator invites, and shared dashboards.
-- A **Fastify TypeScript API** backed by Supabase for persistence and authentication utilities.
-- An **Expo Router mobile companion** targeting iOS/Android with React Query powered data access.
-- Shared UI primitives, tailwind configs, and utilities delivered through Turborepo workspaces.
-
-All projects live in a single pnpm workspace so linting, builds, and Docker packaging can be orchestrated from the root.
+A multi-platform travel planning app that helps you discover places, build itineraries, and share trips with friends. Search for restaurants, clubs, hotels, or pretty much any place anywhere in the world.
 
 ---
 
-## Repository Layout
+## What's Inside
+
+- **Web app** – Next.js 14 with AI-powered place discovery, trip planning, favorites, and a travel diary
+- **API** – Fastify backend with Supabase for data, Groq for AI, and free place search (Foursquare + OpenStreetMap)
+- **Mobile** – Expo app for iOS and Android, synced with your trips and favorites
+
+Everything runs in a single pnpm workspace so you can lint, build, and run from the root.
+
+---
+
+## Project Structure
 
 ```
 smart-travel/
-├── smart-travel-frontend/apps/web        # Next.js 14 App Router client
-├── smart-travel-backend/services/api     # Fastify API service
-├── smart-travel-mobile                   # Expo Router mobile app
-├── smart-travel-frontend/packages        # Shared UI libs & config
-├── docs                                  # Extended docs (env, deployment, roadmap)
-└── docker-compose.yml                    # Local container orchestration
+├── smart-travel-frontend/apps/web    # Next.js web app
+├── smart-travel-backend/services/api # Fastify API
+├── smart-travel-mobile               # Expo mobile app
+└── docker-compose.yml                # Local containers
 ```
-
-Recent highlights:
-
-- Trip itinerary UI now enforces correct hook ordering and memoization for predictable renders.
-- Trip chat supports collaborator invites with clipboard link sharing and scroll management.
-- GitHub Actions lint stage runs against the flat `eslint.config.js` used across all packages.
-- Docker images rely on `pnpm prune --prod` for lean outputs without deprecated flags.
 
 ---
 
 ## Tech Stack
 
-**Web (`apps/web`)**
+**Web** – Next.js 14, React 18, TanStack Query, NextAuth, Tailwind, Lucide icons
 
-- Next.js 14 (App Router) + React 18, TanStack Query, NextAuth for OAuth, Tailwind, Lucide icons.
-- Turbo-repo build orchestration, ESLint via shared flat config, Prettier optional.
+**API** – Fastify, TypeScript, Supabase, Zod validation, rate limiting, input sanitization
 
-**API (`services/api`)**
+**Mobile** – Expo Router, React Native, React Query, NativeWind
 
-- Fastify + TypeScript, Supabase client for data access, Zod validation.
-- Built with `pnpm --filter @smart-travel/api... build`, emits to `dist/`.
+**Place search** – Foursquare (when configured), OpenStreetMap fallback, Unsplash/Pexels for photos
 
-**Mobile (`smart-travel-mobile`)**
+---
 
-- Expo Router 3, React Native 0.74, React Query, NativeWind styling.
-- Linting re-uses root ESLint config (`eslint .`) instead of Expo’s ad-hoc installer.
+## What's New
 
-**Tooling & infra**
-
-- pnpm 9 via Corepack, Turbo 2.x, Node.js 20 baseline (Expo CLI currently requires ≤20).
-- Supabase CLI for local Postgres & storage.
-- Dockerfiles per service plus GitHub Actions workflows for linting and image builds.
+- **Universal search** – Find clubs, bars, hotels, restaurants, or any place type. Search naturally: "coffee shops in Paris", "clubs in Miami", "sushi Tokyo"
+- **Faster responses** – Caching for geocoding and search results so repeat queries come back quickly
+- **Better UX** – Skeleton loading, empty states with clear next steps, and accessibility improvements
+- **PWA-ready** – Manifest and metadata so the web app feels more like a native app
+- **Scalability** – Pagination on trips, performance indexes, and health checks that verify DB connectivity
 
 ---
 
 ## Prerequisites
 
-| Tool                   | Purpose                                                       |
-| ---------------------- | ------------------------------------------------------------- |
-| Node.js 20.x           | `nvm use 20` recommended; Expo tooling is not Node 22 ready.  |
-| pnpm 9.x               | Automatically enabled via `corepack enable`.                  |
-| Supabase CLI           | Local DB + migrations (`brew install supabase/tap/supabase`). |
-| Docker                 | For container builds & GitHub parity.                         |
-| Xcode / Android Studio | For running native Expo builds.                               |
+- **Node.js 20** – Expo still needs Node 20 (`nvm use 20` works well)
+- **pnpm 9** – `corepack enable` and you're set
+- **Supabase CLI** – For local DB and migrations
+- **Docker** – For container builds (optional for local dev)
 
 ---
 
-## Environment Variables
-
-Environment templates live near each package:
-
-| Package | Template                                                      | Destination                 |
-| ------- | ------------------------------------------------------------- | --------------------------- |
-| API     | `smart-travel-backend/services/api/.env.docker.example`       | `.env`, `.env.docker`       |
-| Web     | `smart-travel-frontend/apps/web/.env.example` & `.env.docker` | `.env.local`, `.env.docker` |
-| Mobile  | `smart-travel-mobile/.env.example`                            | `.env`                      |
-
-Populate with:
-
-- Supabase project URL, service role key, storage bucket.
-- Google OAuth client ID/secret (web).
-- Google Maps / Places API key.
-- Groq API key (for AI travel suggestions and query refinement).
-
-Extended guidance: `docs/ENVIRONMENT.md`.
-
----
-
-## Install & Run
+## Getting Started
 
 ```bash
-# Install all workspace deps
+# Install dependencies
 pnpm install
 
-# Run everything (in separate shells)
-pnpm --filter @smart-travel/api dev       # Fastify API on :4000
-pnpm --filter @smart-travel/web dev       # Next dev server on :3000
-pnpm --filter @smart-travel/mobile start  # Expo dev menu (requires Node 20)
+# Run the API (port 4000)
+pnpm --filter @smart-travel/api dev
+
+# Run the web app (port 3000) – in another terminal
+pnpm --filter @smart-travel/web dev
+
+# Run the mobile app – in another terminal
+pnpm --filter @smart-travel/mobile start
 ```
 
-Common scripts:
+**Handy commands:**
 
 ```bash
-pnpm lint          # Workspace lint (mirrors CI)
-pnpm typecheck     # Type-only checks
-pnpm db:push       # Apply Supabase migrations
-pnpm db:seed       # Seed demo data
+pnpm lint        # Lint everything (matches CI)
+pnpm typecheck   # Type check
+pnpm db:push     # Apply database migrations
+pnpm db:seed     # Seed demo data
 ```
 
-> Expo tip: if dev server fails after switching Node versions, clear Metro cache (`expo start -c`).
+> If the Expo dev server acts up after switching Node versions, try `expo start -c` to clear the Metro cache.
 
 ---
 
-## Docker & Deployment
+## Docker
 
-Dockerfiles exist for the API and web app; both leverage multi-stage builds with pnpm workspaces:
+Build and run with Docker:
 
 ```bash
 docker compose build
 docker compose up
 ```
 
-Notes:
-
-- `pnpm prune --prod` now trims dependencies without deprecated `--filter` flags.
-- The web Docker image copies the compiled `.next/` output; there is currently no `public/` directory to copy.
-- Ensure `.env.docker` files exist before running compose or CI builds.
-
-Deployment references for Render, Vercel, Fly.io, and Expo EAS live in `docs/DEPLOYMENT.md`.
+Images use multi-stage builds and `pnpm prune --prod` for lean output. The web image includes the compiled Next.js build and the new `public/` assets (e.g. PWA manifest).
 
 ---
 
-## Continuous Integration
+## CI / CD
 
-GitHub Actions currently ship two main workflows:
+GitHub Actions run on push and PR:
 
-1. **Lint** – runs `pnpm lint` against the workspace flat config (web, API, mobile).
-2. **Build & publish images** – builds Docker images for the web and API with the adjusted prune steps.
+1. **Lint & typecheck** – On push to `main` or `develop`, and on pull requests
+2. **Build & publish images** – On push to `main`, builds and pushes API and web Docker images to GHCR
 
-Before pushing, run `pnpm lint`; this matches the CI gate. For Docker parity, `docker compose build` locally should mirror the pipeline.
-
----
-
-## QA Notes
-
-- Web: verify trip creation, drag/drop reordering, chat auto-scroll, and collaborator invitations.
-- API: confirm Supabase migrations (`db/migrations`) apply cleanly before running.
-- Mobile: test Discover and Trips screens, ensure React Query fetches succeed against local API (emulator needs API URL via `.env`).
+Run `pnpm lint` and `pnpm typecheck` before pushing to keep CI green.
 
 ---
 
-## Roadmap Snapshot
+## Quick QA Checklist
 
-- ✅ Web/API lint & build stability (React hook fixes, pnpm pruning updates).
-- ✅ GitHub pipelines for lint + Docker builds (passing after latest changes).
-- ✅ Expo lint integration through shared ESLint config.
-- ⬜ Automated tests (unit + integration) per package.
-
-For the full backlog, see `docs/ROADMAP.md`.
+- **Web** – Trip creation, drag-and-drop reordering, chat, collaborator invites
+- **API** – Run `pnpm db:push` so migrations are applied before testing
+- **Mobile** – Discover and Trips screens; point the app at your local API URL for the emulator
 
 ---
 
-## Useful One-liners
+## Roadmap
+
+- ✅ Lint, typecheck, and Docker builds stable
+- ✅ Universal place search with free APIs
+- ✅ Caching, pagination, and performance tweaks
+- ⬜ Automated tests (unit + integration)
+
+---
+
+## Tips
 
 ```bash
-# Regenerate Next.js types
-pnpm --filter @smart-travel/web next telemetry disable
-
 # Clean Turbo cache
 pnpm dlx turbo prune
 
-# Targeted linting
+# Lint a single package
 pnpm --filter @smart-travel/api lint
 pnpm --filter @smart-travel/web lint
 pnpm --filter @smart-travel/mobile lint
 ```
+
