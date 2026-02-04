@@ -1,4 +1,4 @@
-# Smart Travel Monorepo
+# Smart Travel 
 
 Smart Travel is a multi-platform travel planning suite composed of:
 
