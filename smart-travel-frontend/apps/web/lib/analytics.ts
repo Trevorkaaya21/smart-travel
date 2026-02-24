@@ -45,18 +45,22 @@ async function sendToAnalytics(data: WebVitalMetric | CustomEvent) {
   }
 }
 
-// Track Web Vitals
+// Track Web Vitals (disabled - requires web-vitals package)
+// To enable: npm install web-vitals
 export function useWebVitals() {
   useEffect(() => {
+    // Web vitals tracking disabled
+    // Uncomment and install web-vitals package to enable
+    /*
     if (typeof window === 'undefined') return
-
     import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
-      onCLS((metric) => sendToAnalytics(metric as WebVitalMetric))
-      onFID((metric) => sendToAnalytics(metric as WebVitalMetric))
-      onFCP((metric) => sendToAnalytics(metric as WebVitalMetric))
-      onLCP((metric) => sendToAnalytics(metric as WebVitalMetric))
-      onTTFB((metric) => sendToAnalytics(metric as WebVitalMetric))
+      onCLS((metric: any) => sendToAnalytics(metric as WebVitalMetric))
+      onFID((metric: any) => sendToAnalytics(metric as WebVitalMetric))
+      onFCP((metric: any) => sendToAnalytics(metric as WebVitalMetric))
+      onLCP((metric: any) => sendToAnalytics(metric as WebVitalMetric))
+      onTTFB((metric: any) => sendToAnalytics(metric as WebVitalMetric))
     })
+    */
   }, [])
 }
 

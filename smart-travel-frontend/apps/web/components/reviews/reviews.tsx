@@ -286,7 +286,7 @@ export function Reviews({ placeId, placeName, userEmail, initialReviews = [] }: 
           </div>
         ) : (
           reviews.map((review) => (
-            <ReviewCard key={review.id} review={review} userEmail={userEmail} />
+            <ReviewCard key={review.id} review={review} userEmail={userEmail} placeName={placeName} />
           ))
         )}
       </div>
@@ -294,7 +294,7 @@ export function Reviews({ placeId, placeName, userEmail, initialReviews = [] }: 
   )
 }
 
-function ReviewCard({ review, userEmail }: { review: Review; userEmail?: string }) {
+function ReviewCard({ review, userEmail, placeName }: { review: Review; userEmail?: string; placeName: string }) {
   const [helpful, setHelpful] = React.useState<boolean | null>(null)
 
   const handleVote = async (isHelpful: boolean) => {
@@ -332,7 +332,7 @@ function ReviewCard({ review, userEmail }: { review: Review; userEmail?: string 
             <div className="flex items-center gap-2">
               <span className="font-medium">{review.user_name ?? 'Anonymous'}</span>
               {review.is_verified && (
-                <CheckCircle2 className="h-4 w-4 text-[rgb(var(--accent))]" title="Verified visit" />
+                <CheckCircle2 className="h-4 w-4 text-[rgb(var(--accent))]" aria-label="Verified visit" />
               )}
             </div>
             <div className="flex items-center gap-3 text-xs text-[rgb(var(--muted))]">
