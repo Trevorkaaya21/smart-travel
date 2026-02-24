@@ -254,13 +254,13 @@ Return ONLY a JSON array of strings, no explanations. Each suggestion should be 
       }
     } catch {
       // If not JSON, try to extract suggestions from lines
-      const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+      const lines = cleaned.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0)
       suggestions = lines
-        .map(line => {
+        .map((line: string) => {
           // Remove numbering/bullets
           return line.replace(/^[-*•]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^["']|["']$/g, '').trim()
         })
-        .filter(s => s.length > 0 && s.length < 100)
+        .filter((s: string) => s.length > 0 && s.length < 100)
         .slice(0, 8)
     }
 
@@ -1513,8 +1513,9 @@ server.get('/v1/trips', {}, async (req, reply) => {
     const daysCount = uniqueDays.size || 1
 
     // Use place photo if available (photos are saved when places are added)
-    const imageUrl = firstPlace?.places?.photo || null
-    const imageCredit = firstPlace?.places?.photo_credit || null
+    const placeData = firstPlace?.places as any
+    const imageUrl = placeData?.photo || null
+    const imageCredit = placeData?.photo_credit || null
 
     return {
       ...trip,
