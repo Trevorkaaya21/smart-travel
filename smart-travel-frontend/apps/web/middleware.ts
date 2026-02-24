@@ -34,7 +34,7 @@ const securityHeaders = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https: http: blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://accounts.google.com https://*.googleapis.com http://localhost:4000 http://127.0.0.1:4000 http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3001 ws://127.0.0.1:3001",
+    "connect-src 'self' https://accounts.google.com https://*.googleapis.com https://*.onrender.com http://localhost:4000 http://127.0.0.1:4000 http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3001 ws://127.0.0.1:3001",
     "frame-src 'self' https://accounts.google.com",
     "object-src 'none'",
     "base-uri 'self'",
