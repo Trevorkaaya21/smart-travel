@@ -6,6 +6,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { API_BASE } from '@/lib/api'
+import { stringImageUrl } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -284,9 +285,9 @@ export default function ProfilePage() {
               className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[rgb(var(--text))] transition hover:opacity-90 disabled:opacity-60"
               title="Change profile picture"
             >
-              {profileQuery.data?.avatar_url ? (
+              {stringImageUrl(profileQuery.data?.avatar_url) ? (
                 <img
-                  src={profileQuery.data.avatar_url}
+                  src={stringImageUrl(profileQuery.data?.avatar_url)!}
                   alt=""
                   className="h-full w-full object-cover"
                 />

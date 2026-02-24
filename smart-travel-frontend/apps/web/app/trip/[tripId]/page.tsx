@@ -9,10 +9,9 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Home } from 'lucide-react'
+import { Home, MapPin } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
 import { ShareButton } from '@/components/trip/share-button'
-import { TripChatPanel } from '@/components/trip/trip-chat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -34,6 +33,8 @@ type TripItem = {
   name?: string | null
   category?: string | null
   rating?: number | null
+  lat?: number | null
+  lng?: number | null
 }
 
 const EMPTY_ITEMS: TripItem[] = []
@@ -196,6 +197,18 @@ function ItemRow({
           }}
           className="timeline-input w-44"
         />
+        {item.lat && item.lng && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium transition hover:bg-white/20"
+            title="Open in Google Maps"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            Maps
+          </a>
+        )}
         <button
           onClick={() => onDelete(item.id)}
           className="btn btn-ghost text-xs"
@@ -510,8 +523,6 @@ export default function TripPage() {
           })}
         </div>
       </DndContext>
-
-      {tripId ? <TripChatPanel tripId={tripId} /> : null}
     </main>
   )
 }

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { HeartOff, Loader2, MapPin, Compass } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
+import { stringImageUrl } from '@/lib/utils'
 
 type Favorite = {
   place_id: string
@@ -145,9 +146,12 @@ export default function FavoritesPage() {
 
 function FavoriteCard({ favorite, removing, onRemove }: { favorite: Favorite; removing: boolean; onRemove: () => void }) {
   const place = favorite.place
-  const image =
-    place?.photo ||
-    `https://images.unsplash.com/placeholder-photos/extra-large.jpg?auto=format&fit=crop&w=900&q=80`
+  
+  // Use saved photo or fallback to a generic travel image
+  const placePhoto = stringImageUrl(place?.photo ?? (place as any)?.photo_url)
+  const fallbackImage = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=900&h=600&fit=crop'
+  const image = placePhoto ?? fallbackImage
+  
   const mapsLink =
     place?.lat != null && place?.lng != null
       ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`

@@ -2,6 +2,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { useSearchParams } from 'next/navigation'
 import { useGuest } from '@/lib/useGuest'
 import { Compass } from 'lucide-react'
 
@@ -16,6 +17,8 @@ const AiSearch = dynamic(() => import('@/components/search/ai-search'), {
 
 export default function DashboardPage() {
   const { isGuest } = useGuest()
+  const searchParams = useSearchParams()
+  const addToTripId = searchParams.get('addToTrip') ?? undefined
 
   return (
     <div className="flex h-full flex-col gap-8 animate-fade-in">
@@ -48,7 +51,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <AiSearch />
+      <AiSearch addToTripId={addToTripId} />
     </div>
   )
 }

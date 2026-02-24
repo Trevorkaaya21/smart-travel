@@ -113,12 +113,30 @@ export default function CreateItineraryPage() {
     toast.success('Day duplicated', { description: 'The new day was inserted right after.' })
   }, [])
 
+  // Calculate end date based on start date and duration
+  const endDate = React.useMemo(() => {
+    if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null
+    try {
+      const start = new Date(startDate + 'T12:00:00')
+      const end = new Date(start)
+      end.setDate(end.getDate() + Math.max(0, days - 1))
+      return end.getFullYear() + '-' + String(end.getMonth() + 1).padStart(2, '0') + '-' + String(end.getDate()).padStart(2, '0')
+    } catch {
+      return null
+    }
+  }, [startDate, days])
+
   React.useEffect(() => {
     if (!destination) return
     const labelParts = [destination]
-    if (startDate) labelParts.push(formatDateLabel(startDate))
+    if (startDate) {
+      const dateLabel = endDate && endDate !== startDate
+        ? `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`
+        : formatDateLabel(startDate)
+      labelParts.push(dateLabel)
+    }
     setTripName(labelParts.join(' • '))
-  }, [destination, startDate])
+  }, [destination, startDate, endDate])
 
   if (!authenticated) {
     return (
@@ -229,13 +247,20 @@ export default function CreateItineraryPage() {
     setSaving(true)
     try {
       const name = tripName.trim() || itinerary.tripTitle || `AI Trip • ${destination}`
+      // Use computed end_date from state (already calculated in useMemo)
+      let start_date: string | undefined
+      let end_date: string | undefined
+      if (startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+        start_date = startDate
+        end_date = endDate ?? undefined
+      }
       const tripRes = await fetch(`${API_BASE}/v1/trips`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-email': email,
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, start_date, end_date }),
       })
       if (!tripRes.ok) {
         const raw = await tripRes.text()
@@ -334,7 +359,7 @@ export default function CreateItineraryPage() {
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        <section className="content-card space-y-6">
+        <section className="content-card space-y-6 sticky top-6 self-start">
           <h2 className="text-lg font-semibold">Trip blueprint</h2>
 
           <div className="space-y-4 text-sm text-[color-mix(in_oklab,rgb(var(--text))_74%,rgb(var(--muted))_26%)]">
@@ -372,6 +397,19 @@ export default function CreateItineraryPage() {
                 />
               </Field>
             </div>
+
+            {startDate && endDate && startDate !== endDate && (
+              <div 
+                className="rounded-xl border px-4 py-3 text-xs font-medium"
+                style={{
+                  borderColor: 'rgba(var(--accent) / .3)',
+                  background: 'rgba(var(--accent) / .08)',
+                  color: 'rgb(var(--accent))'
+                }}
+              >
+                Trip ends on {formatDateLabel(endDate)}
+              </div>
+            )}
 
             <Field label="Preferences">
               <div className="flex flex-wrap gap-2">
@@ -455,18 +493,32 @@ export default function CreateItineraryPage() {
                 Drag and refine later in My Trips
               </p>
             </div>
-            <div
-              className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all duration-200"
-              style={{
-                borderColor: 'rgba(var(--border) / .5)',
-                background: 'linear-gradient(165deg, rgba(var(--surface-muted) / .6), rgba(var(--surface-muted) / .4))',
-                boxShadow: '0 2px 8px rgba(var(--shadow-color) / .05)'
-              }}
-            >
-              <CalendarRange className="h-4 w-4 text-[rgb(var(--accent))]" />
-              <span className="text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
-                {days} days · {pace.toLowerCase()} pace
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all duration-200"
+                style={{
+                  borderColor: 'rgba(var(--border) / .5)',
+                  background: 'linear-gradient(165deg, rgba(var(--surface-muted) / .6), rgba(var(--surface-muted) / .4))',
+                  boxShadow: '0 2px 8px rgba(var(--shadow-color) / .05)'
+                }}
+              >
+                <CalendarRange className="h-4 w-4 text-[rgb(var(--accent))]" />
+                <span className="text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
+                  {days} days · {pace.toLowerCase()} pace
+                </span>
+              </div>
+              {startDate && endDate && (
+                <div
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition-all duration-200"
+                  style={{
+                    borderColor: 'rgba(var(--accent) / .4)',
+                    background: 'rgba(var(--accent) / .12)',
+                    color: 'rgb(var(--accent))'
+                  }}
+                >
+                  {formatDateLabel(startDate)} → {formatDateLabel(endDate)}
+                </div>
+              )}
             </div>
           </header>
 
@@ -477,6 +529,11 @@ export default function CreateItineraryPage() {
                 <p className="text-sm font-medium text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)]">
                   Building your itinerary…
                 </p>
+                {startDate && endDate && (
+                  <p className="text-xs text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)]">
+                    {formatDateLabel(startDate)} - {formatDateLabel(endDate)} • {destination}
+                  </p>
+                )}
                 <div className="mt-6 space-y-4 w-full">
                   {Array.from({ length: Math.min(days, 3) }).map((_, i) => (
                     <div key={i} className="content-subtle space-y-3 animate-pulse">
@@ -514,6 +571,7 @@ export default function CreateItineraryPage() {
                   key={`day-${idx}-${day.day}`}
                   day={day}
                   dayIndex={idx}
+                  startDate={startDate}
                   onDuplicate={duplicateDayAtIndex}
                 />
               ))}
@@ -621,17 +679,39 @@ const ChipSelect = React.memo(function ChipSelect<T extends string>({
 const DayCard = React.memo(function DayCard({
   day,
   dayIndex,
+  startDate,
   onDuplicate,
 }: {
   day: AiDay
   dayIndex: number
+  startDate?: string
   onDuplicate: (index: number) => void
 }) {
+  // Calculate actual date for this day
+  const actualDate = React.useMemo(() => {
+    if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null
+    try {
+      const start = new Date(startDate + 'T12:00:00')
+      const current = new Date(start)
+      current.setDate(current.getDate() + dayIndex)
+      return formatDateLabel(current.toISOString().split('T')[0])
+    } catch {
+      return null
+    }
+  }, [startDate, dayIndex])
+
   return (
     <article className="content-subtle space-y-4 transition-all duration-200">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1.5">
-          <span className="form-label text-[rgb(var(--muted))]">Day {day.day}</span>
+          <div className="flex items-center gap-2">
+            <span className="form-label text-[rgb(var(--muted))]">Day {day.day}</span>
+            {actualDate && (
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[rgb(var(--accent))] opacity-80">
+                {actualDate}
+              </span>
+            )}
+          </div>
           <h3 className="text-lg font-semibold text-[rgb(var(--text))]">{day.title || `Day ${day.day}`}</h3>
         </div>
         <div className="flex items-center gap-2">
@@ -711,11 +791,32 @@ function buildPrompt(input: {
 }) {
   const { destination, days, startDate, pace, budget, traveler, preferences, notes } = input
   const prefText = preferences.length ? preferences.join(', ') : 'any interesting spots'
-  const dateText = startDate ? `starting on ${formatDateLabel(startDate)}` : 'with flexible dates'
+  
+  // Enhanced date context with day of week and season awareness
+  let dateText = 'with flexible dates'
+  let seasonContext = ''
+  if (startDate) {
+    try {
+      const start = new Date(startDate + 'T12:00:00')
+      const dayOfWeek = start.toLocaleDateString(undefined, { weekday: 'long' })
+      const monthName = start.toLocaleDateString(undefined, { month: 'long' })
+      dateText = `starting on ${dayOfWeek}, ${formatDateLabel(startDate)}`
+      
+      // Add seasonal context
+      const month = start.getMonth() + 1
+      if (month >= 3 && month <= 5) seasonContext = ' (Spring season)'
+      else if (month >= 6 && month <= 8) seasonContext = ' (Summer season)'
+      else if (month >= 9 && month <= 11) seasonContext = ' (Fall season)'
+      else seasonContext = ' (Winter season)'
+    } catch {
+      dateText = `starting on ${formatDateLabel(startDate)}`
+    }
+  }
+  
   const context = [
     `Destination: ${destination}`,
     `Trip length: ${days} days`,
-    `Timing: ${dateText}`,
+    `Timing: ${dateText}${seasonContext}`,
     `Travelers: ${traveler}`,
     `Trip pace: ${pace}`,
     `Budget: ${budget}`,
@@ -753,6 +854,8 @@ Return strictly valid JSON matching:
     }
   ]
 }
+
+${startDate ? `IMPORTANT: Consider that the trip starts on ${dateText}${seasonContext}. Plan activities that make sense for the day of week and season (e.g., avoid booking restaurants on their closed days, suggest seasonal activities, consider weekend vs weekday crowd levels).` : ''}
 
 Focus each entry on a single compelling activity or meal. At most 5 entries per day. Do not wrap the JSON in backticks or markdown.
 `.trim()

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CalendarDays, Trash2 } from 'lucide-react'
+import { stringImageUrl } from '@/lib/utils'
 
 type Props = {
   id: string
@@ -28,7 +29,7 @@ export function TripCard({ id, name, start, end, status, imageUrl, onDelete }: P
         {/* image */}
         <img
           src={
-            imageUrl ??
+            stringImageUrl(imageUrl) ??
             'https://images.unsplash.com/photo-1505765050516-f72dcac9c60e?q=80&w=1200&auto=format&fit=crop'
           }
           alt=""

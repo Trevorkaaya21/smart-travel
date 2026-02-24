@@ -89,3 +89,15 @@ export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text
   return text.slice(0, maxLength - 3) + '...'
 }
+
+/**
+ * Coerce a value to a string URL for img src. Prevents [object Object] 404s when API returns objects.
+ */
+export function stringImageUrl(value: unknown): string | null {
+  if (typeof value === 'string' && value.length > 0) {
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+      return value
+    }
+  }
+  return null
+}

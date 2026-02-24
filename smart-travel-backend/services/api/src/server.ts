@@ -11,7 +11,9 @@ import { supa } from './supabase.js'
 import {
   aiSearchBodySchema,
   aiSuggestBodySchema,
+  aiSearchSuggestionsBodySchema,
   tripsPostBodySchema,
+  tripsPatchBodySchema,
   tripItemsPostBodySchema,
   favoritesBodySchema,
   profilePutBodySchema,
@@ -31,11 +33,13 @@ const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 16)
 /** In-memory TTL cache for geocoding and search - scales with many users by reducing external API calls */
 const CACHE_TTL_MS = 1000 * 60 * 60 // 1 hour for geocode
 const SEARCH_CACHE_TTL_MS = 1000 * 60 * 15 // 15 min for search results
+const SUGGESTIONS_CACHE_TTL_MS = 1000 * 60 * 30 // 30 min for suggestions (longer since they're less dynamic)
 const CACHE_MAX_ENTRIES = 1000
 
 interface CacheEntry<T> { value: T; expiresAt: number }
 const geocodeCache = new Map<string, CacheEntry<{ lat: number; lng: number }>>()
 const searchCache = new Map<string, CacheEntry<any[]>>()
+const suggestionsCache = new Map<string, CacheEntry<string[]>>()
 
 function pruneCache<T>(cache: Map<string, CacheEntry<T>>, maxSize: number) {
   if (cache.size <= maxSize) return
@@ -84,7 +88,8 @@ const DIARY_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'diary-photos'
 const AVATAR_BUCKET = process.env.SUPABASE_AVATAR_BUCKET || 'avatars'
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || ''
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY || ''
-// Foursquare Places API for better search results
+// Places API keys
+const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || ''
 const FOURSQUARE_API_KEY = process.env.FOURSQUARE_API_KEY || ''
 type TripAccessRole = 'owner' | 'collaborator'
 const MIME_EXTENSION: Record<string, string> = {
@@ -135,20 +140,22 @@ function validate<T>(schema: z.ZodType<T>, data: unknown, reply: any): T | null 
 async function aiRefine(q: string) {
   if (!GROQ_API_KEY) return q.trim()
   
-  const prompt = `You are a travel search assistant. Extract the location and place type from this query.
-  
+  const prompt = `You are a travel search assistant. Extract the location and place type from this query, focusing on what the user actually wants to find.
+
 Examples:
 - "miami clubs" → "clubs in Miami"
 - "best restaurants paris" → "restaurants in Paris"
 - "coffee shops near me tokyo" → "coffee shops in Tokyo"
-- "bars downtown new york" → "bars in New York"
-- "things to do london" → "attractions in London"
-- "sushi restaurants" → "sushi restaurants"
-- "hotels beach resort" → "beach resort hotels"
+- "all inclusive Bahamas vacation packages" → "resorts hotels in Bahamas" (focus on accommodations/activities, not packages)
+- "things to do london" → "attractions activities in London"
+- "beach resorts bali" → "beach resorts hotels in Bali"
+- "romantic restaurants paris" → "romantic restaurants in Paris"
+
+Important: For vacation/travel queries, extract the destination and convert to specific place types (hotels, resorts, attractions, restaurants, beaches, etc.). Avoid generic terms like "packages" or "vacation" - convert to actual place categories.
 
 User query: "${q}"
 
-Return ONLY the refined search query (location + place type). Be concise. No explanations.`
+Return ONLY the refined search query (location + specific place type). Be concise. No explanations.`
 
   try {
     const { text } = await generateWithGroq(prompt)
@@ -162,6 +169,160 @@ Return ONLY the refined search query (location + place type). Be concise. No exp
     console.warn('aiRefine fallback', err)
     return q.trim()
   }
+}
+
+/**
+ * Filter out irrelevant places based on query intent
+ * Removes places that don't match the search intent (e.g., cemeteries for vacation queries)
+ */
+function filterIrrelevantPlaces(places: any[], query: string): any[] {
+  const lowerQuery = query.toLowerCase()
+  
+  // Keywords that indicate travel/vacation intent
+  const travelKeywords = ['vacation', 'trip', 'travel', 'resort', 'hotel', 'beach', 'tourist', 'attraction', 'destination', 'holiday', 'getaway']
+  const isTravelQuery = travelKeywords.some(kw => lowerQuery.includes(kw))
+  
+  // Categories to exclude for travel queries
+  const excludeCategories = [
+    'cemetery', 'grave', 'funeral', 'mortuary', 'burial',
+    'church', 'place of worship', 'religious', 'temple', 'mosque', 'synagogue',
+    'hospital', 'clinic', 'medical', 'pharmacy',
+    'school', 'university', 'college', 'education',
+    'government', 'post office', 'courthouse',
+    'warehouse', 'factory', 'industrial'
+  ]
+  
+  if (!isTravelQuery) return places
+  
+  return places.filter(place => {
+    const category = (place.category || '').toLowerCase()
+    const name = (place.name || '').toLowerCase()
+    
+    // Exclude if category matches exclude list
+    if (excludeCategories.some(exclude => category.includes(exclude) || name.includes(exclude))) {
+      return false
+    }
+    
+    return true
+  })
+}
+
+/**
+ * Generate AI-powered search suggestions based on partial user input
+ * Handles various travel scenarios: places, activities, restaurants, hotels, etc.
+ */
+async function generateSearchSuggestions(partialQuery: string, lat?: number, lng?: number): Promise<string[]> {
+  if (!GROQ_API_KEY) {
+    // Fallback to basic suggestions if AI is not available
+    return generateFallbackSuggestions(partialQuery)
+  }
+
+  const locationContext = lat && lng ? `User is near ${lat.toFixed(4)}, ${lng.toFixed(4)}. ` : ''
+  
+  const prompt = `You are a travel search assistant. Generate 6-8 concise, natural search query suggestions based on what the user is typing.
+
+User is typing: "${partialQuery}"
+${locationContext}
+Generate suggestions that:
+1. Complete or expand on what they're typing
+2. Cover various travel scenarios (restaurants, attractions, hotels, activities, nightlife, etc.)
+3. Include location when relevant (cities, neighborhoods, landmarks)
+4. Are specific and actionable (e.g., "best sushi restaurants in Tokyo", "hidden bars in Brooklyn", "family-friendly activities in Paris")
+5. Use natural language like a real person would search
+
+Examples of good suggestions:
+- If user types "coffee" → ["coffee shops in Paris", "best coffee in Seattle", "coffee with wifi near me", "specialty coffee Tokyo", "coffee shops open late NYC"]
+- If user types "things to do" → ["things to do in Barcelona", "free activities in London", "hidden gems in Tokyo", "family activities in Orlando"]
+- If user types "miami" → ["best restaurants in Miami", "nightlife in Miami Beach", "beaches in Miami", "art galleries Miami"]
+- If user types "romantic" → ["romantic restaurants in Paris", "romantic getaways near me", "romantic sunset spots Santorini"]
+
+Return ONLY a JSON array of strings, no explanations. Each suggestion should be 3-8 words max.`
+
+  try {
+    const { text } = await generateWithGroq(prompt)
+    const cleaned = text.trim()
+    
+    // Try to parse as JSON array
+    let suggestions: string[] = []
+    try {
+      // Remove markdown code blocks if present
+      const jsonMatch = cleaned.match(/\[.*\]/s)
+      if (jsonMatch) {
+        suggestions = JSON.parse(jsonMatch[0])
+      } else {
+        suggestions = JSON.parse(cleaned)
+      }
+    } catch {
+      // If not JSON, try to extract suggestions from lines
+      const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+      suggestions = lines
+        .map(line => {
+          // Remove numbering/bullets
+          return line.replace(/^[-*•]\s*/, '').replace(/^\d+[.)]\s*/, '').replace(/^["']|["']$/g, '').trim()
+        })
+        .filter(s => s.length > 0 && s.length < 100)
+        .slice(0, 8)
+    }
+
+    // Validate and clean suggestions
+    suggestions = suggestions
+      .filter(s => typeof s === 'string' && s.length >= 3 && s.length <= 100)
+      .slice(0, 8)
+      .map(s => s.trim())
+
+    if (suggestions.length === 0) {
+      return generateFallbackSuggestions(partialQuery)
+    }
+
+    return suggestions
+  } catch (err) {
+    console.warn('generateSearchSuggestions AI fallback', err)
+    return generateFallbackSuggestions(partialQuery)
+  }
+}
+
+/**
+ * Fallback suggestions when AI is unavailable - uses pattern matching
+ */
+function generateFallbackSuggestions(partialQuery: string): string[] {
+  const lower = partialQuery.toLowerCase().trim()
+  const suggestions: string[] = []
+
+  // Common travel patterns
+  const patterns: Record<string, string[]> = {
+    'coffee': ['coffee shops in Paris', 'best coffee in Seattle', 'coffee with wifi near me'],
+    'restaurant': ['best restaurants in Tokyo', 'romantic restaurants Paris', 'budget restaurants near me'],
+    'hotel': ['hotels in Barcelona', 'luxury hotels Dubai', 'budget hotels near me'],
+    'beach': ['beaches in Miami', 'best beaches Bali', 'beach resorts Caribbean'],
+    'museum': ['museums in London', 'art museums New York', 'free museums Paris'],
+    'nightlife': ['nightlife in Berlin', 'best clubs Miami', 'bars in Brooklyn'],
+    'food': ['street food Bangkok', 'food markets Barcelona', 'best food Tokyo'],
+    'things to do': ['things to do in Barcelona', 'free activities London', 'hidden gems Tokyo'],
+  }
+
+  // Check for pattern matches
+  for (const [pattern, options] of Object.entries(patterns)) {
+    if (lower.includes(pattern)) {
+      suggestions.push(...options)
+      break
+    }
+  }
+
+  // Generic suggestions if no pattern matches
+  if (suggestions.length === 0) {
+    const commonCities = ['Paris', 'Tokyo', 'New York', 'London', 'Barcelona', 'Miami']
+    const commonTypes = ['restaurants', 'attractions', 'hotels', 'activities', 'nightlife']
+    
+    for (const city of commonCities.slice(0, 3)) {
+      for (const type of commonTypes.slice(0, 2)) {
+        if (suggestions.length >= 6) break
+        suggestions.push(`${type} in ${city}`)
+      }
+      if (suggestions.length >= 6) break
+    }
+  }
+
+  return suggestions.slice(0, 6)
 }
 
 async function upsertPlaceFromPayload(place: any) {
@@ -178,11 +339,126 @@ async function upsertPlaceFromPayload(place: any) {
     category: place.category ?? 'poi',
     rating,
     lat,
-    lng
+    lng,
+    photo: place.photo ?? place.photo_url ?? place.photoRef ?? null,
+    photo_credit: place.photo_credit ?? null
   }
 
   const { error } = await supa.from('places').upsert(row, { onConflict: 'id' })
   if (error) throw error
+}
+
+/**
+ * Search places using Google Places API (Text Search)
+ * Best quality results, 6000 free searches/month with $200 credit
+ */
+async function searchPlacesGoogle(q: string, lat?: number, lng?: number, limit = 20, radius = 6000) {
+  if (!GOOGLE_PLACES_API_KEY) return null
+  
+  try {
+    let searchQuery = q
+    let searchLat = lat
+    let searchLng = lng
+    
+    // If no coordinates provided, try to geocode
+    if (searchLat == null || searchLng == null) {
+      const geo = await geocodeLocation(q)
+      if (!geo) {
+        console.warn('Could not geocode location for:', q)
+        return null
+      }
+      searchLat = geo.lat
+      searchLng = geo.lng
+      
+      // Remove location words from query
+      const locationWords = ['in', 'near', 'at', 'around']
+      for (const word of locationWords) {
+        const regex = new RegExp(`\\s+${word}\\s+.+$`, 'i')
+        searchQuery = searchQuery.replace(regex, '').trim()
+      }
+    }
+    
+    // Google Places API (New) - Text Search
+    const url = new URL('https://places.googleapis.com/v1/places:searchText')
+    
+    const requestBody = {
+      textQuery: searchQuery,
+      locationBias: {
+        circle: {
+          center: {
+            latitude: searchLat,
+            longitude: searchLng
+          },
+          radius: Math.min(radius, 50000) // Max 50km
+        }
+      },
+      maxResultCount: Math.min(limit, 20),
+      languageCode: 'en'
+    }
+    
+    const res = await fetchWithTimeout(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.types,places.location,places.rating,places.userRatingCount,places.photos,places.formattedAddress'
+      },
+      body: JSON.stringify(requestBody)
+    }, 10000)
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        console.warn('Google Places API 401 Unauthorized - check your API key')
+      } else if (res.status === 429) {
+        console.warn('Google Places API 429 Rate Limit - consider upgrading quota')
+      } else {
+        console.warn('Google Places API failed:', res.status, res.statusText)
+      }
+      return null
+    }
+    
+    const data = await res.json()
+    const places = data?.places ?? []
+    
+    if (!places.length) {
+      console.warn('Google Places returned no results for:', q)
+      return []
+    }
+    
+    console.log(`Google Places found ${places.length} places for "${q}"`)
+    
+    return places.map((place: any) => {
+      // Extract primary category from types
+      const types = place.types || []
+      const primaryType = types[0] || 'place'
+      const categoryName = primaryType.replace(/_/g, ' ')
+      
+      // Get photo URL if available
+      let photoUrl: string | null = null
+      if (place.photos && place.photos.length > 0) {
+        const photo = place.photos[0]
+        // Google Photos API format
+        photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=800&maxHeightPx=600&key=${GOOGLE_PLACES_API_KEY}`
+      }
+      
+      return {
+        id: `google-${place.id}`,
+        name: place.displayName?.text || 'Unknown',
+        category: categoryName,
+        categories: types.map((t: string) => t.replace(/_/g, ' ')),
+        rating: place.rating || null,
+        popularity: place.userRatingCount || null,
+        lat: place.location?.latitude || null,
+        lng: place.location?.longitude || null,
+        address: place.formattedAddress || null,
+        photoRef: photoUrl,
+        google_id: place.id
+      }
+    })
+  } catch (err) {
+    console.error('Google Places search failed:', err)
+    return null
+  }
 }
 
 /**
@@ -217,24 +493,27 @@ async function searchPlacesFoursquare(q: string, lat?: number, lng?: number, lim
       }
     }
     
-    // Foursquare Places API v3 - search for ANY type of place
-    const url = new URL('https://api.foursquare.com/v3/places/search')
+    // Foursquare Places API (new endpoint as of 2025)
+    const url = new URL('https://places-api.foursquare.com/places/search')
     url.searchParams.set('ll', `${searchLat},${searchLng}`)
     url.searchParams.set('radius', String(Math.min(radius, 15000))) // Max 15km for broader search
     url.searchParams.set('limit', String(Math.min(limit, 50)))
     url.searchParams.set('query', searchQuery)
-    url.searchParams.set('fields', 'fsq_id,name,categories,geocodes,location,rating,popularity') // Request all useful fields
+    url.searchParams.set('fields', 'fsq_place_id,name,categories,geocodes,location,rating,popularity,photos') // Updated field names
     
     const res = await fetchWithTimeout(url.toString(), {
       headers: {
-        'Authorization': FOURSQUARE_API_KEY,
-        'Accept': 'application/json'
+        'Authorization': `Bearer ${FOURSQUARE_API_KEY}`,
+        'Accept': 'application/json',
+        'X-Places-Api-Version': '2025-06-17'
       }
     }, 10000)
     
     if (!res.ok) {
       if (res.status === 401) {
-        console.warn('Foursquare API 401 Unauthorized - set FOURSQUARE_API_KEY in environment (get free key at developer.foursquare.com)')
+        console.warn('Foursquare API 401 Unauthorized - You need a SERVICE KEY (not Legacy API Key). Get one at: https://location.foursquare.com/developer/')
+      } else if (res.status === 410) {
+        console.warn('Foursquare API 410 Gone - Your key is for the old v3 API. Generate a NEW Service Key at: https://location.foursquare.com/developer/')
       } else {
         console.warn('Foursquare API failed:', res.status, res.statusText)
       }
@@ -267,17 +546,30 @@ async function searchPlacesFoursquare(q: string, lat?: number, lng?: number, lim
       
       const formattedAddress = place.location?.formatted_address || addressParts.join(', ')
       
+      // Extract Foursquare photo if available (real venue photo)
+      let foursquarePhoto: string | null = null
+      if (place.photos && Array.isArray(place.photos) && place.photos.length > 0) {
+        const firstPhoto = place.photos[0]
+        if (firstPhoto.prefix && firstPhoto.suffix) {
+          // Use 600x450 size for good quality without being too large
+          const width = firstPhoto.width || 600
+          const height = firstPhoto.height || 450
+          foursquarePhoto = `${firstPhoto.prefix}${width}x${height}${firstPhoto.suffix}`
+        }
+      }
+      
       return {
-        id: `fsq-${place.fsq_id}`,
+        id: `fsq-${place.fsq_place_id || place.fsq_id}`,
         name: place.name,
         category: primaryCategory,
-        categories: categoryNames, // Include all categories for better filtering
+        categories: categoryNames,
         rating: place.rating || null,
         popularity: place.popularity || null,
-        lat: place.geocodes?.main?.latitude,
-        lng: place.geocodes?.main?.longitude,
+        lat: place.latitude || place.geocodes?.main?.latitude,
+        lng: place.longitude || place.geocodes?.main?.longitude,
         address: formattedAddress,
-        photoRef: null,
+        photoRef: foursquarePhoto,
+        fsq_id: place.fsq_place_id || place.fsq_id,
       }
     }).filter((p: any) => p.lat != null && p.lng != null)
   } catch (err) {
@@ -928,6 +1220,7 @@ server.get('/v1/ai/debug', async () => {
   const env = {
     GROQ_API_KEY: !!GROQ_API_KEY,
     GROQ_MODEL: GROQ_MODEL,
+    GOOGLE_PLACES_API_KEY: !!GOOGLE_PLACES_API_KEY,
     FOURSQUARE_API_KEY: !!FOURSQUARE_API_KEY,
     UNSPLASH_ACCESS_KEY: !!UNSPLASH_ACCESS_KEY,
     PEXELS_API_KEY: !!PEXELS_API_KEY,
@@ -987,14 +1280,25 @@ server.post(
       return { refined, items: cachedResult }
     }
 
-    // Try Foursquare first (better results), then OSM, then Nominatim
-    let places = await searchPlacesFoursquare(refined, _lat, _lng, limit, radius)
+    // Try Google Places first (best quality), then Foursquare, then OSM
+    let places = await searchPlacesGoogle(refined, _lat, _lng, limit, radius)
+    
+    if (places === null || places.length === 0) {
+      console.log('Google Places unavailable, trying Foursquare...')
+      places = await searchPlacesFoursquare(refined, _lat, _lng, limit, radius)
+    } else {
+      console.log('Using Google Places results:', places.length, 'places found')
+    }
     
     if (places === null || places.length === 0) {
       console.log('Using OSM fallback for search')
       places = await searchPlacesOSM(refined, _lat, _lng, limit, radius)
-    } else {
-      console.log('Using Foursquare results:', places.length, 'places found')
+    }
+    
+    // Filter out irrelevant places for better accuracy
+    if (places && places.length > 0) {
+      places = filterIrrelevantPlaces(places, refined)
+      console.log(`After filtering: ${places.length} relevant places`)
     }
     
     // Final fallback: Nominatim place search (works for named places, landmarks, etc.)
@@ -1018,17 +1322,29 @@ server.post(
         photo_credit: null
       }
 
-      // Get photo from Unsplash/Pexels
-      if (base.name) {
-        const photoData = await getPlacePhoto(base.name)
+      // Priority: Google/Foursquare photos (real venue) > Unsplash (category-based) > Static map
+      if (p.photoRef) {
+        base.photo = p.photoRef
+        // Determine credit based on ID prefix
+        if (p.id.startsWith('google-')) {
+          base.photo_credit = 'Google Places'
+        } else if (p.id.startsWith('fsq-')) {
+          base.photo_credit = 'Foursquare'
+        } else {
+          base.photo_credit = 'Places API'
+        }
+      } else if (base.category || base.name) {
+        // Fallback to Unsplash using category for better results
+        const searchTerm = base.category || base.name
+        const photoData = await getPlacePhoto(searchTerm)
         if (photoData) {
           base.photo = photoData.url
           base.photo_credit = photoData.credit
         }
       }
 
-      // Fallback to static map
-      if (!base.photo) {
+      // Final fallback to static map (only if no photo found)
+      if (!base.photo && base.lat && base.lng) {
         const staticMap = getStaticMap(base.lat, base.lng)
         if (staticMap) {
           base.photo = staticMap
@@ -1079,6 +1395,50 @@ server.post(
   }
 )
 
+server.post(
+  '/v1/ai/search/suggestions',
+  {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          q: { type: 'string' },
+          lat: { type: 'number' },
+          lng: { type: 'number' }
+        },
+        required: ['q']
+      }
+    }
+  },
+  async (req, reply) => {
+    const body = validate(aiSearchSuggestionsBodySchema, req.body, reply)
+    if (body == null) return
+    const { q, lat, lng } = body
+
+    // Don't generate suggestions for very short queries (less than 2 chars)
+    if (q.trim().length < 2) {
+      return { suggestions: [] }
+    }
+
+    // Check cache
+    const cacheKey = `suggestions:${q.toLowerCase().trim()}:${lat ?? 'n'}:${lng ?? 'n'}`
+    const cached = cachedGet(suggestionsCache, cacheKey)
+    if (cached) {
+      return { suggestions: cached }
+    }
+
+    try {
+      const suggestions = await generateSearchSuggestions(q, lat, lng)
+      cachedSet(suggestionsCache, cacheKey, suggestions, SUGGESTIONS_CACHE_TTL_MS)
+      return { suggestions }
+    } catch (err: any) {
+      req.log.warn({ err }, 'search_suggestions_failed')
+      // Return empty array on error rather than failing the request
+      return { suggestions: [] }
+    }
+  }
+)
+
 server.get(
   '/v1/places',
   {
@@ -1106,7 +1466,7 @@ server.get('/v1/trips', {}, async (req, reply) => {
 
   const { data: trips, error } = await supa
     .from('trips')
-    .select('id, name, owner_email, is_public, share_id, created_at')
+    .select('id, name, owner_email, is_public, share_id, created_at, start_date, end_date')
     .eq('owner_email', owner_email)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -1119,14 +1479,53 @@ server.get('/v1/trips', {}, async (req, reply) => {
     const { data: created, error: cErr } = await supa
       .from('trips')
       .insert({ owner_email, name: 'My Trip' })
-      .select('id, name, owner_email, is_public, share_id, created_at')
+      .select('id, name, owner_email, is_public, share_id, created_at, start_date, end_date')
       .single()
     if (cErr) return reply.code(500).send({ error: 'db_error' })
     defaultTripId = created!.id
     list = [created!]
   }
 
-  return { defaultTripId, trips: list }
+  // Enhance trips with image and stats from their places
+  const enhancedTrips = await Promise.all(list.map(async (trip: any) => {
+    // Get first place with photo for trip image
+    const { data: firstPlace } = await supa
+      .from('trip_items')
+      .select('places(photo, photo_credit, name, category, lat, lng)')
+      .eq('trip_id', trip.id)
+      .order('day', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    
+    // Get trip stats
+    const { count: placesCount } = await supa
+      .from('trip_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('trip_id', trip.id)
+    
+    const { data: daysData } = await supa
+      .from('trip_items')
+      .select('day')
+      .eq('trip_id', trip.id)
+    
+    const uniqueDays = new Set((daysData || []).map((d: any) => d.day))
+    const daysCount = uniqueDays.size || 1
+
+    // Use place photo if available (photos are saved when places are added)
+    const imageUrl = firstPlace?.places?.photo || null
+    const imageCredit = firstPlace?.places?.photo_credit || null
+
+    return {
+      ...trip,
+      image_url: imageUrl,
+      image_credit: imageCredit,
+      places_count: placesCount || 0,
+      days_count: daysCount,
+    }
+  }))
+
+  return { defaultTripId, trips: enhancedTrips }
 })
 
 server.post('/v1/trips', {}, async (req, reply) => {
@@ -1135,7 +1534,10 @@ server.post('/v1/trips', {}, async (req, reply) => {
     const body = validate(tripsPostBodySchema, req.body, reply)
     if (body == null) return
     const name = body.name ?? 'New Trip'
-    const { data, error } = await supa.from('trips').insert({ owner_email: email, name }).select('id').single()
+    const payload: Record<string, unknown> = { owner_email: email, name }
+    if (body.start_date) payload.start_date = body.start_date
+    if (body.end_date) payload.end_date = body.end_date
+    const { data, error } = await supa.from('trips').insert(payload).select('id').single()
     if (error) throw error
     return { id: data!.id }
   } catch (e: any) {
@@ -1162,14 +1564,19 @@ server.patch('/v1/trips/:id', {}, async (req, reply) => {
   try {
     const email = ensureEmail(req.headers)
     const id = (req.params as any)?.id as string
-    const name = (req.body as any)?.name as string | undefined
-    if (!name || !name.trim()) return reply.code(400).send({ error: 'name_required' })
+    const body = validate(tripsPatchBodySchema, req.body, reply)
+    if (body == null) return
     const { data: trip, error: tripErr } = await supa.from('trips').select('id, owner_email').eq('id', id).single()
     if (tripErr || !trip) return reply.code(404).send({ error: 'not_found' })
     if (trip.owner_email?.toLowerCase() !== email) return reply.code(403).send({ error: 'forbidden' })
-    const { error } = await supa.from('trips').update({ name }).eq('id', id)
+    const patch: Record<string, unknown> = {}
+    if (body.name !== undefined) patch.name = body.name.trim()
+    if (body.start_date !== undefined) patch.start_date = body.start_date
+    if (body.end_date !== undefined) patch.end_date = body.end_date
+    if (Object.keys(patch).length === 0) return reply.code(400).send({ error: 'no_updates' })
+    const { error } = await supa.from('trips').update(patch).eq('id', id)
     if (error) throw error
-    return { ok: true, name }
+    return { ok: true, ...patch }
   } catch (e: any) {
     return reply.code(e.statusCode || 500).send({ error: e.message || 'db_error' })
   }
@@ -1177,7 +1584,7 @@ server.patch('/v1/trips/:id', {}, async (req, reply) => {
 
 server.get('/v1/trips/:id', {}, async (req, reply) => {
   const id = (req.params as any)?.id as string
-  const { data, error } = await supa.from('trips').select('id, name, owner_email, is_public, share_id').eq('id', id).single()
+  const { data, error } = await supa.from('trips').select('id, name, owner_email, is_public, share_id, start_date, end_date').eq('id', id).single()
   if (error || !data) return reply.code(404).send({ error: 'not_found' })
   return { trip: data }
 })
@@ -1186,7 +1593,7 @@ server.get('/v1/trips/:id/items', {}, async (req, reply) => {
   const id = (req.params as any)?.id as string
   const { data, error } = await supa
     .from('trip_items')
-    .select('id, place_id, day, note, created_at, places(name, category, rating, photo, photo_credit)')
+    .select('id, place_id, day, note, created_at, places(name, category, rating, photo, photo_credit, lat, lng)')
     .eq('trip_id', id)
     .order('day', { ascending: true })
     .order('created_at', { ascending: true })
@@ -1201,7 +1608,9 @@ server.get('/v1/trips/:id/items', {}, async (req, reply) => {
     category: r.places?.category,
     rating: r.places?.rating,
     photo: r.places?.photo ?? null,
-    photo_credit: r.places?.photo_credit ?? null
+    photo_credit: r.places?.photo_credit ?? null,
+    lat: r.places?.lat ?? null,
+    lng: r.places?.lng ?? null
   }))
   return { items }
 })

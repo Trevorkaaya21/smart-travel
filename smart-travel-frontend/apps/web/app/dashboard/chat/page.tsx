@@ -5,6 +5,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { API_BASE, withEmail } from '@/lib/api'
+import { stringImageUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -320,8 +321,8 @@ export default function TravelChatPage() {
                         style={{ background: 'var(--glass-bg)' }}
                       >
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))] text-sm font-semibold">
-                          {u.avatar_url ? (
-                            <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                          {stringImageUrl(u.avatar_url) ? (
+                            <img src={stringImageUrl(u.avatar_url)!} alt="" className="h-full w-full object-cover" />
                           ) : (
                             initials(u.email, u.display_name, u.travel_name)
                           )}

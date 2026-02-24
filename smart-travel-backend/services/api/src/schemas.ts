@@ -52,12 +52,33 @@ export const aiSuggestBodySchema = z
   })
   .strict()
 
+export const aiSearchSuggestionsBodySchema = z
+  .object({
+    q: strRequired(200),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+  })
+  .strict()
+
 // --- Trips ---
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date_iso').optional()
+
 export const tripsPostBodySchema = z
   .object({
     name: strRequired(200).default('New Trip'),
+    start_date: isoDateSchema,
+    end_date: isoDateSchema,
   })
   .strict()
+
+export const tripsPatchBodySchema = z
+  .object({
+    name: str(200).optional(),
+    start_date: isoDateSchema.or(z.null()),
+    end_date: isoDateSchema.or(z.null()),
+  })
+  .strict()
+  .refine((d) => d.name !== undefined || d.start_date !== undefined || d.end_date !== undefined, { message: 'at_least_one_field' })
 
 export const tripItemsPostBodySchema = z
   .object({

@@ -1,6 +1,6 @@
 # Smart Travel
 
-A multi-platform travel planning app that helps you discover places, build itineraries, and share trips with friends. Search for restaurants, clubs, hotels, or pretty much any place anywhere in the world.
+A multi-platform travel planning app that helps you discover places, build itineraries, and share trips with friends. Search for restaurants, clubs, hotels, or pretty much any place—anywhere in the world.
 
 ---
 
@@ -40,6 +40,14 @@ smart-travel/
 
 ## What's New
 
+### Latest - Trip Dates & Enhanced AI
+- **Smart date handling** – Set start date + duration, automatically calculates end date
+- **Visual date ranges** – See exact dates for each day in your itinerary (Day 1 • FEB 20)
+- **Context-aware AI** – AI considers day of week, season, and date context for better suggestions
+- **Improved UX** – Sticky form sidebar, date range badges, enhanced loading states
+- **See:** `IMPLEMENTATION_SUMMARY.md` and `VISUAL_GUIDE.md` for details
+
+### Previous Updates
 - **Universal search** – Find clubs, bars, hotels, restaurants, or any place type. Search naturally: "coffee shops in Paris", "clubs in Miami", "sushi Tokyo"
 - **Faster responses** – Caching for geocoding and search results so repeat queries come back quickly
 - **Better UX** – Skeleton loading, empty states with clear next steps, and accessibility improvements

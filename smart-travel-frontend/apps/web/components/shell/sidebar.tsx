@@ -11,8 +11,9 @@ import { toast } from 'sonner'
 import type { LucideIcon } from 'lucide-react'
 import { Compass, Wand2, MapPinned, Heart, NotebookPen, UserRound, LogOut, LogIn, Sun, Moon, MessageCircle } from 'lucide-react'
 import { useGuest } from '@/lib/useGuest'
-import { cn } from '@/lib/utils'
+import { cn, stringImageUrl } from '@/lib/utils'
 import { API_BASE } from '@/lib/api'
+import { emailToUsername, getInitialsFromEmail } from '@/lib/trip-utils'
 
 type NavItem = {
   href: string
@@ -31,20 +32,13 @@ const nav: NavItem[] = [
   { href: '/dashboard/profile', label: 'Profile', icon: UserRound, requiresAuth: true },
 ]
 
-function initials(name?: string | null, email?: string | null) {
-  const src = (name || email || '?').trim()
-  const parts = src.split(/\s+/).slice(0, 2)
-  return parts.map(p => p[0]?.toUpperCase() ?? '').join('') || 'ST'
-}
-
 export default function SidebarNav() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
   const { isGuest } = useGuest()
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  const [avatarError, setAvatarError] = useState(false)
 
   const guestMode = isGuest || status !== 'authenticated'
   const user = session?.user as any | undefined
@@ -59,8 +53,13 @@ export default function SidebarNav() {
     },
     enabled: !!email && !guestMode,
   })
-  const avatarUrl = profile?.avatar_url ?? user?.image ?? null
-  const name = (profile?.display_name as string | undefined) || (user?.name as string | undefined) || email || (guestMode ? 'Guest Explorer' : 'Smart Traveler')
+  const rawAvatar = profile?.avatar_url ?? user?.image ?? null
+  const avatarUrl = stringImageUrl(rawAvatar) ?? null
+  const displayName = (profile?.display_name as string | undefined) || emailToUsername(email) || 'Guest Explorer'
+  const initials = getInitialsFromEmail(email)
+
+  useEffect(() => setMounted(true), [])
+  useEffect(() => setAvatarError(false), [avatarUrl])
 
   function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, item: NavItem) {
     if (!item.requiresAuth) return
@@ -111,14 +110,19 @@ export default function SidebarNav() {
       <div className="mt-auto space-y-3">
         <div className="flex items-center gap-3 rounded-xl border px-3.5 py-2.5 backdrop-blur-sm" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-semibold text-[rgb(var(--accent))]" style={{ background: 'rgba(var(--accent) / 0.12)' }}>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            {avatarUrl && !avatarError ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
             ) : (
-              initials(profile?.display_name ?? user?.name, email ?? null)
+              initials
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-[rgb(var(--text))]">{name}</div>
+            <div className="truncate text-sm font-semibold text-[rgb(var(--text))]">{displayName}</div>
             <div className="truncate text-xs text-[rgb(var(--muted))]">{email ?? 'Guest access'}</div>
           </div>
           {!guestMode && (

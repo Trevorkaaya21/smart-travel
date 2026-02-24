@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Camera, Loader2, ArrowLeft, ImageOff } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
+import { stringImageUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -342,13 +343,13 @@ export default function DiaryDetailPage() {
                       <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-[color-mix(in_oklab,rgb(var(--text))_60%,rgb(var(--muted))_40%)]">
                         <span>{new Date(entry.created_at).toLocaleString()}</span>
                       </div>
-                      {(entry.photo_url ?? entry.photo_data) && (
+                      {stringImageUrl(entry.photo_url ?? entry.photo_data) ? (
                         <img
-                          src={entry.photo_url ?? entry.photo_data ?? undefined}
+                          src={stringImageUrl(entry.photo_url ?? entry.photo_data)!}
                           alt={entry.photo_caption ?? 'Diary entry photo'}
                           className="w-full rounded-2xl object-cover"
                         />
-                      )}
+                      ) : null}
                       {entry.photo_caption && (
                         <p className="text-sm italic text-[color-mix(in_oklab,rgb(var(--text))_68%,rgb(var(--muted))_32%)]">
                           {entry.photo_caption}
