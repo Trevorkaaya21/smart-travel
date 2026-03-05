@@ -15,6 +15,11 @@ const AiSearch = dynamic(() => import('@/components/search/ai-search'), {
   )
 })
 
+const MLRecommendations = dynamic(
+  () => import('@/components/ml/recommendations').then(m => ({ default: m.MLRecommendations })),
+  { ssr: false }
+)
+
 export default function DashboardPage() {
   const { isGuest } = useGuest()
   const searchParams = useSearchParams()
@@ -35,7 +40,7 @@ export default function DashboardPage() {
               Find the next stop on your dream itinerary
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-[rgb(var(--muted))]">
-              AI-powered place discovery with real-time search. Find restaurants, clubs, hotels, and attractions anywhere. Pin places to trips, save favorites, and explore the world.
+              ML-powered place discovery with semantic search. Find restaurants, clubs, hotels, and attractions anywhere.
             </p>
           </div>
           <div
@@ -50,6 +55,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {/* ML-Powered Recommendations & Trending */}
+      <MLRecommendations />
 
       <AiSearch addToTripId={addToTripId} />
     </div>

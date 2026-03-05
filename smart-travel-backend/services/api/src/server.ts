@@ -2370,6 +2370,99 @@ server.post('/v1/chat/conversations/:id/messages', {}, async (req, reply) => {
   }
 })
 
+// ─── ML Service Proxy ─────────────────────────────────────
+// Proxies requests to the Python ML service for recommendations,
+// semantic search, itinerary optimization, and trending detection.
+
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5000'
+
+async function proxyToML(path: string, method: string, body?: any): Promise<any> {
+  try {
+    const res = await fetchWithTimeout(`${ML_SERVICE_URL}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    }, 15000)
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown error')
+      return { error: true, status: res.status, message: errText }
+    }
+    return await res.json()
+  } catch (e: any) {
+    if (e.name === 'AbortError') {
+      return { error: true, status: 504, message: 'ML service timeout' }
+    }
+    return { error: true, status: 503, message: 'ML service unavailable' }
+  }
+}
+
+// ML Health check
+server.get('/v1/ml/health', {}, async (_req, reply) => {
+  const result = await proxyToML('/health', 'GET')
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Semantic Search - faster alternative to external API search
+server.post('/v1/ml/search', {}, async (req, reply) => {
+  const body = req.body as any
+  if (!body?.query) return reply.code(400).send({ error: 'query required' })
+  const result = await proxyToML('/v1/ml/search', 'POST', body)
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Personalized Recommendations
+server.post('/v1/ml/recommend', {}, async (req, reply) => {
+  const body = req.body as any
+  if (!body?.user_email) return reply.code(400).send({ error: 'user_email required' })
+  const result = await proxyToML('/v1/ml/recommend', 'POST', body)
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Similar Places
+server.post('/v1/ml/similar', {}, async (req, reply) => {
+  const body = req.body as any
+  if (!body?.place_id) return reply.code(400).send({ error: 'place_id required' })
+  const result = await proxyToML('/v1/ml/similar', 'POST', body)
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Itinerary Optimization
+server.post('/v1/ml/optimize', {}, async (req, reply) => {
+  const body = req.body as any
+  if (!body?.places || !Array.isArray(body.places)) return reply.code(400).send({ error: 'places array required' })
+  const result = await proxyToML('/v1/ml/optimize', 'POST', body)
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Smart Suggestions
+server.post('/v1/ml/suggest', {}, async (req, reply) => {
+  const body = req.body as any
+  if (!body?.partial_query) return reply.code(400).send({ error: 'partial_query required' })
+  const result = await proxyToML('/v1/ml/suggest', 'POST', body)
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Trending Destinations
+server.get('/v1/ml/trending', {}, async (_req, reply) => {
+  const result = await proxyToML('/v1/ml/trending', 'GET')
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
+// ML Reindex (rebuild search index from database)
+server.post('/v1/ml/reindex', {}, async (_req, reply) => {
+  const result = await proxyToML('/v1/ml/reindex', 'POST')
+  if (result.error) return reply.code(result.status).send({ error: result.message })
+  return result
+})
+
 const port = Number(process.env.API_PORT || 4000)
 server.listen({ port, host: '0.0.0.0' }).catch((err) => {
   server.log.error(err)
