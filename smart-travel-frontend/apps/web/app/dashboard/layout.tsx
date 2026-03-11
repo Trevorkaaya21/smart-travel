@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <div className="relative flex min-h-[100dvh] w-full flex-col gap-6 px-4 pb-10 pt-6 md:flex-row md:px-6 lg:px-8 lg:pt-8">
-        <div className="md:sticky md:top-8 md:h-[calc(100dvh-4rem)] md:w-[280px] md:shrink-0">
+        <div className="md:sticky md:top-8 md:h-[calc(100dvh-4rem)] md:shrink-0 transition-all duration-300">
           <Sidebar />
         </div>
         <main className="content-shell min-w-0 flex-1">

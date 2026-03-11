@@ -347,13 +347,13 @@ export default function CreateItineraryPage() {
       <header className="content-header">
         <div className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.35em] text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)]">
-            Create with AI
+            AI Planner
           </p>
           <h1 className="text-3xl font-semibold leading-tight md:text-4xl">
-            Generate a day-by-day itinerary tailored to your vibe
+            Plan your perfect trip
           </h1>
           <p className="max-w-2xl text-sm text-[color-mix(in_oklab,rgb(var(--text))_72%,rgb(var(--muted))_28%)]">
-            Blend your travel style, time frame, and must-have experiences. Google AI Studio shapes it into a structured plan you can edit inside Smart Travel.
+            Tell us where you're going, your style, and interests. We'll create a day-by-day itinerary you can customize.
           </p>
         </div>
       </header>

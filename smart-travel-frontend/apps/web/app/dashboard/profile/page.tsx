@@ -10,7 +10,7 @@ import { stringImageUrl } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { UserRound, Loader2, Pencil, ShieldCheck, Trash2, MapPinned, Heart, BarChart3, Map, Camera } from 'lucide-react'
+import { UserRound, Loader2, Trash2, MapPinned, Heart, BarChart3, Map, Camera } from 'lucide-react'
 
 type Profile = {
   display_name?: string | null
@@ -81,7 +81,6 @@ export default function ProfilePage() {
   const [homeBase, setHomeBase] = React.useState('')
   const [bio, setBio] = React.useState('')
   const [travelName, setTravelName] = React.useState('')
-  const [editing, setEditing] = React.useState(false)
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -123,7 +122,6 @@ export default function ProfilePage() {
       ),
     onSuccess: () => {
       toast.success('Profile updated')
-      setEditing(false)
       qc.invalidateQueries({ queryKey: ['profile', email] })
     },
     onError: () => toast.error('Could not save profile right now.'),
@@ -268,70 +266,43 @@ export default function ProfilePage() {
       </section>
 
       <section className="content-card flex flex-col gap-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleAvatarChange}
-              aria-label="Upload profile picture"
-            />
-            <button
-              type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[rgb(var(--text))] transition hover:opacity-90 disabled:opacity-60"
-              title="Change profile picture"
-            >
-              {stringImageUrl(profileQuery.data?.avatar_url) ? (
-                <img
-                  src={stringImageUrl(profileQuery.data?.avatar_url)!}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <UserRound className="h-8 w-8" />
-              )}
-              {uploadingAvatar && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
-                </span>
-              )}
-              <span className="absolute bottom-0 right-0 rounded-tl bg-[rgb(var(--accent))] p-1">
-                <Camera className="h-3.5 w-3.5 text-white" />
+        <div className="flex items-center gap-3">
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleAvatarChange}
+            aria-label="Upload profile picture"
+          />
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[rgb(var(--text))] transition hover:opacity-90 disabled:opacity-60"
+            title="Change profile picture"
+          >
+            {stringImageUrl(profileQuery.data?.avatar_url) ? (
+              <img
+                src={stringImageUrl(profileQuery.data?.avatar_url)!}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <UserRound className="h-8 w-8" />
+            )}
+            {uploadingAvatar && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
               </span>
-            </button>
-            <div>
-              <div className="text-sm font-semibold">Traveler card</div>
-              <div className="form-helper">
-                {editing ? 'Edit mode' : 'View mode'} · Click photo to upload
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => setEditing((prev) => !prev)}
-              variant="ghost"
-              className="btn btn-ghost rounded-2xl px-4 py-2 text-xs font-semibold"
-            >
-              <Pencil className="h-4 w-4" />
-              {editing ? 'Stop editing' : 'Edit details'}
-            </Button>
-            <Button
-              onClick={() => {
-                setDisplayName('')
-                setHomeBase('')
-                setBio('')
-                setEditing(true)
-              }}
-              variant="ghost"
-              className="btn btn-ghost rounded-2xl px-4 py-2 text-xs font-semibold"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Reset fields
-            </Button>
+            )}
+            <span className="absolute bottom-0 right-0 rounded-tl bg-[rgb(var(--accent))] p-1">
+              <Camera className="h-3.5 w-3.5 text-white" />
+            </span>
+          </button>
+          <div>
+            <div className="text-sm font-semibold">Traveler card</div>
+            <div className="form-helper">Click photo to upload</div>
           </div>
         </div>
 
@@ -341,7 +312,6 @@ export default function ProfilePage() {
             placeholder="Adventurous Alex"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            editing={editing}
             loading={isLoading}
           />
           <ProfileField
@@ -349,15 +319,14 @@ export default function ProfilePage() {
             placeholder="alex_travels"
             value={travelName}
             onChange={(e) => setTravelName(e.target.value)}
-            editing={editing}
             loading={isLoading}
+            hint="Used in Messages so friends can find you"
           />
           <ProfileField
             label="Home base"
             placeholder="Lisbon, Portugal"
             value={homeBase}
             onChange={(e) => setHomeBase(e.target.value)}
-            editing={editing}
             loading={isLoading}
           />
         </div>
@@ -367,14 +336,13 @@ export default function ProfilePage() {
           placeholder="Weekend explorer, coffee obsessed, chasing architecture and hidden record stores."
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          editing={editing}
           loading={isLoading}
         />
 
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => saveMut.mutate()}
-            disabled={!editing || saveMut.isPending}
+            disabled={saveMut.isPending}
             className="btn btn-primary rounded-2xl px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saveMut.isPending ? (
@@ -414,16 +382,16 @@ function ProfileField({
   label,
   value,
   onChange,
-  editing,
   loading,
   placeholder,
+  hint,
 }: {
   label: string
   value: string
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
-  editing: boolean
   loading: boolean
   placeholder: string
+  hint?: string
 }) {
   return (
     <label className="space-y-2 text-sm">
@@ -432,9 +400,10 @@ function ProfileField({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        disabled={!editing || loading}
+        disabled={loading}
         className="input-surface"
       />
+      {hint && <span className="text-[10px] text-[rgb(var(--muted))]">{hint}</span>}
     </label>
   )
 }
@@ -443,14 +412,12 @@ function ProfileTextarea({
   label,
   value,
   onChange,
-  editing,
   loading,
   placeholder,
 }: {
   label: string
   value: string
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void
-  editing: boolean
   loading: boolean
   placeholder: string
 }) {
@@ -461,7 +428,7 @@ function ProfileTextarea({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        disabled={!editing || loading}
+        disabled={loading}
         className="textarea-surface min-h-[120px]"
       />
     </label>

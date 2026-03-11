@@ -3,23 +3,41 @@
  */
 
 /**
- * Extract location from trip name and fetch relevant image from Unsplash
- * Examples:
- * - "Boston • Feb 19, 2026" → "boston"
- * - "Trip to Miami Design District" → "miami"
- * - "Washington • Feb 5, 2026" → "washington"
+ * Strip date patterns from trip names saved with embedded dates.
+ * "Boston • Feb 19, 2026"            → "Boston"
+ * "dubai • Feb 24, 2026 - Feb 26, 2026" → "dubai"
+ * "Trip to Miami Design District"    → "Trip to Miami Design District"
+ */
+export function cleanTripName(name: string): string {
+  return name
+    .replace(/\s*[•·]\s*\w{3,9}\s+\d{1,2},?\s+\d{4}\s*[-–]\s*\w{3,9}\s+\d{1,2},?\s+\d{4}/gi, '')
+    .replace(/\s*[•·]\s*\w{3,9}\s+\d{1,2},?\s+\d{4}/gi, '')
+    .trim() || name
+}
+
+/**
+ * Compute trip duration in days from start/end date strings (YYYY-MM-DD).
+ * Returns 1 when dates are equal or missing.
+ */
+export function computeTripDays(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 1
+  const s = new Date(start + 'T12:00:00')
+  const e = new Date(end + 'T12:00:00')
+  const diff = Math.round((e.getTime() - s.getTime()) / 86_400_000)
+  return Math.max(1, diff + 1)
+}
+
+/**
+ * Extract location keyword from trip name for image lookup.
  */
 export function extractLocationFromTripName(tripName: string): string {
-  // Remove date patterns like "• Feb 19, 2026"
-  let location = tripName.replace(/[•·]\s*\w+\s+\d+,?\s+\d{4}/g, '').trim()
-  
-  // Remove "Trip to" prefix
+  let location = cleanTripName(tripName)
+
   location = location.replace(/^trip\s+to\s+/i, '').trim()
-  
-  // Take first meaningful word (usually the location)
+
   const words = location.split(/\s+/)
   const firstWord = words[0] || location
-  
+
   return firstWord.toLowerCase()
 }
 

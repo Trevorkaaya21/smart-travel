@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList } from 'lucide-react'
+import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList, Navigation } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
 import { stringImageUrl } from '@/lib/utils'
-import { getTripImageUrl } from '@/lib/trip-utils'
+import { getTripImageUrl, cleanTripName, computeTripDays } from '@/lib/trip-utils'
 
 type Trip = {
   id: string
@@ -25,9 +25,8 @@ type Trip = {
   end_date?: string | null
 }
 
-type TripGroup = 'planning' | 'upcoming' | 'past'
+type TripGroup = 'planning' | 'active' | 'upcoming' | 'past'
 
-/** Today at start of day (local) for real-time upcoming vs past */
 function todayDateString(): string {
   const d = new Date()
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
@@ -36,6 +35,7 @@ function todayDateString(): string {
 function groupTrips(trips: Trip[]): Record<TripGroup, Trip[]> {
   const today = todayDateString()
   const planning: Trip[] = []
+  const active: Trip[] = []
   const upcoming: Trip[] = []
   const past: Trip[] = []
 
@@ -43,16 +43,13 @@ function groupTrips(trips: Trip[]): Record<TripGroup, Trip[]> {
     const placesCount = trip.places_count ?? 0
     const endDate = trip.end_date ?? null
 
-    // No places = still planning
     if (placesCount === 0) {
       planning.push(trip)
       continue
     }
 
-    // Has places: use end_date for real-time grouping
     if (!endDate) {
-      // No end date set → treat as upcoming so user can add dates later
-      upcoming.push(trip)
+      active.push(trip)
     } else if (endDate >= today) {
       upcoming.push(trip)
     } else {
@@ -60,7 +57,7 @@ function groupTrips(trips: Trip[]): Record<TripGroup, Trip[]> {
     }
   }
 
-  return { planning, upcoming, past }
+  return { planning, active, upcoming, past }
 }
 
 async function listTrips(email: string) {
@@ -156,7 +153,7 @@ export default function TripsPage() {
   })
 
   const grouped = React.useMemo(() => {
-    if (!tripsQuery.data?.length) return { planning: [], upcoming: [], past: [] }
+    if (!tripsQuery.data?.length) return { planning: [], active: [], upcoming: [], past: [] }
     return groupTrips(tripsQuery.data)
   }, [tripsQuery.data])
 
@@ -295,13 +292,28 @@ export default function TripsPage() {
               isPlanning={true}
             />
 
+            {/* Active trips - have places but no dates */}
+            <TripSection
+              title="Active trips"
+              subtitle="Trips with places added · Set dates to move them to Upcoming"
+              icon={Navigation}
+              trips={grouped.active}
+              emptyMessage="No active trips without dates."
+              emptyAction={null}
+              deleteMut={deleteMut}
+              email={email}
+              onDatesUpdate={() => qc.invalidateQueries({ queryKey: ['trips', email] })}
+              updateTripDates={updateTripDates}
+              isPlanning={false}
+            />
+
             {/* Upcoming trips */}
             <TripSection
               title="Upcoming trips"
-              subtitle="Trips with end date today or in the future · Ready to explore"
+              subtitle="Trips with dates in the future · Ready to explore"
               icon={Plane}
               trips={grouped.upcoming}
-              emptyMessage="No upcoming trips yet. Add places to your planning trips and set dates to move them here."
+              emptyMessage="No upcoming trips yet. Set dates on your active trips to move them here."
               emptyAction={
                 <Link href="/dashboard" className="btn btn-primary rounded-2xl px-4 py-2 text-xs font-semibold">
                   <Plus className="h-4 w-4" />
@@ -416,7 +428,12 @@ function TripSection({
             key={trip.id}
             trip={trip}
             email={email}
-            onDelete={() => deleteMut.mutate(trip.id)}
+            onDelete={() => {
+              const name = cleanTripName(trip.name) || 'this trip'
+              if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
+                deleteMut.mutate(trip.id)
+              }
+            }}
             deletePending={deleteMut.isPending}
             onDatesUpdate={onDatesUpdate}
             updateTripDates={updateTripDates}
@@ -455,11 +472,12 @@ function TripCard({
   updateTripDates: (id: string, email: string, start_date: string | null, end_date: string | null) => Promise<unknown>
 }) {
   const tripImage = stringImageUrl(trip.image_url)
-  // If no custom image, generate one based on trip name
   const autoImage = !tripImage ? getTripImageUrl(trip.name) : null
   const finalImage = tripImage || autoImage
   const placesCount = trip.places_count ?? 0
-  const daysCount = trip.days_count ?? 1
+  const displayName = cleanTripName(trip.name)
+  const daysFromDates = computeTripDays(trip.start_date, trip.end_date)
+  const daysCount = trip.start_date && trip.end_date ? daysFromDates : (trip.days_count ?? 1)
   const isEmpty = placesCount === 0
   const dateRange = formatTripDateRange(trip.start_date, trip.end_date)
   const [editingDates, setEditingDates] = React.useState(false)
@@ -538,7 +556,7 @@ function TripCard({
           </div>
         )}
         <div className="absolute bottom-3 left-3 right-3">
-          <h3 className="text-lg font-bold leading-tight text-white drop-shadow-lg truncate">{trip.name}</h3>
+          <h3 className="text-lg font-bold leading-tight text-white drop-shadow-lg truncate">{displayName}</h3>
           <div className="flex items-center gap-2 text-xs text-white/90 mt-1.5 flex-wrap">
             {dateRange && (
               <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 backdrop-blur-sm">

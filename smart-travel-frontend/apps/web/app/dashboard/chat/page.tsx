@@ -186,27 +186,32 @@ export default function TravelChatPage() {
   const selectedConv = conversations.find(c => c.id === selectedId)
   const otherEmail = selectedConv?.other_email ?? ''
 
+  const showThread = !!(selectedId || showNewChat)
+
   return (
     <div className="flex h-full flex-col text-[rgb(var(--text))]">
       <header className="content-header border-b border-[rgb(var(--border))]/50 pb-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.35em] text-[rgb(var(--text))] opacity-90">
-              Travel Chat
+              Messages
             </p>
             <h1 className="text-3xl font-semibold text-[rgb(var(--text))] md:text-4xl">
-              Message travelers
+              Messages
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-[rgb(var(--text))] opacity-90">
-              Find users by email or travel name and start a conversation.
+              Chat with other travelers by email or travel name.
             </p>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 gap-4 rounded-2xl border border-[rgb(var(--border))]/50 p-4 shadow-sm backdrop-blur-xl" style={{ background: 'var(--glass-bg)' }}>
-        {/* Left: conversation list */}
-        <aside className="flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-[rgb(var(--border))]/50 shadow-sm backdrop-blur-xl" style={{ background: 'var(--glass-bg)' }}>
+        {/* Left: conversation list -- hidden on mobile when a thread is open */}
+        <aside className={cn(
+          'flex shrink-0 flex-col overflow-hidden rounded-xl border border-[rgb(var(--border))]/50 shadow-sm backdrop-blur-xl',
+          showThread ? 'hidden md:flex md:w-80' : 'flex w-full md:w-80',
+        )} style={{ background: 'var(--glass-bg)' }}>
           <div className="border-b border-[rgb(var(--border))]/40 px-4 py-3">
             <span className="block text-xs font-semibold uppercase tracking-wider text-[rgb(var(--text))]">
               Conversations
@@ -255,15 +260,18 @@ export default function TravelChatPage() {
           )}
         </aside>
 
-        {/* Right: thread or new chat */}
-        <main className="flex flex-1 flex-col min-h-0 rounded-xl border border-[rgb(var(--border))]/50 shadow-sm backdrop-blur-xl" style={{ background: 'var(--glass-bg)' }}>
+        {/* Right: thread or new chat -- full width on mobile */}
+        <main className={cn(
+          'flex flex-1 flex-col min-h-0 rounded-xl border border-[rgb(var(--border))]/50 shadow-sm backdrop-blur-xl',
+          !showThread && 'hidden md:flex',
+        )} style={{ background: 'var(--glass-bg)' }}>
           {showNewChat ? (
             <div className="flex flex-1 flex-col overflow-y-auto p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowNewChat(false)}
+                  onClick={() => { setShowNewChat(false); setSelectedId(null) }}
                   className="btn btn-ghost gap-1.5"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -390,6 +398,14 @@ export default function TravelChatPage() {
           ) : selectedId ? (
             <>
               <div className="flex items-center gap-3 border-b border-[rgb(var(--border))]/50 px-4 py-3 backdrop-blur-sm" style={{ background: 'var(--glass-bg)' }}>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedId(null); setShowNewChat(false) }}
+                  className="rounded-lg p-1.5 transition md:hidden hover:bg-[var(--glass-bg-hover)]"
+                  aria-label="Back to conversations"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))]">
                   <UserRound className="h-4 w-4" />
                 </div>

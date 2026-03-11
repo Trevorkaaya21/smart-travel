@@ -1510,7 +1510,13 @@ server.get('/v1/trips', {}, async (req, reply) => {
       .eq('trip_id', trip.id)
     
     const uniqueDays = new Set((daysData || []).map((d: any) => d.day))
-    const daysCount = uniqueDays.size || 1
+    let daysCount = uniqueDays.size || 1
+    if (trip.start_date && trip.end_date) {
+      const s = new Date(trip.start_date + 'T12:00:00')
+      const e = new Date(trip.end_date + 'T12:00:00')
+      const diff = Math.round((e.getTime() - s.getTime()) / 86_400_000)
+      daysCount = Math.max(1, diff + 1)
+    }
 
     // Use place photo if available (photos are saved when places are added)
     const placeData = firstPlace?.places as any
@@ -2374,7 +2380,7 @@ server.post('/v1/chat/conversations/:id/messages', {}, async (req, reply) => {
 // Proxies requests to the Python ML service for recommendations,
 // semantic search, itinerary optimization, and trending detection.
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5000'
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001'
 
 async function proxyToML(path: string, method: string, body?: any): Promise<any> {
   try {

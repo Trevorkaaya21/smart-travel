@@ -36,7 +36,16 @@ type Place = {
 
 const DUPLICATE_RE = /duplicate key/i
 
-// Removed preset prompts - now using AI-powered autocomplete suggestions
+const QUICK_PROMPTS = [
+  'Rooftop bars in Barcelona',
+  'Family beaches in Bali',
+  'Hidden gems in Tokyo',
+  'Best coffee in Paris',
+  'Nightlife in Miami',
+  'Museums in Rome',
+  'Street food Bangkok',
+  'Romantic spots Santorini',
+]
 
 function resolveEmail(sessionEmail?: string | null): string | undefined {
   if (sessionEmail) return sessionEmail
@@ -615,20 +624,9 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
         </>
       )}
       
-      {/* Search Section - reserves space for dropdown so it never overlaps content below */}
+      {/* Search Section */}
       <div className="content-card">
-        <div className="flex items-start gap-4">
-          <div className="ui-liquid-icon">
-            <Wand2 className="h-5 w-5 text-[rgb(var(--accent))]" />
-          </div>
-          <div className="space-y-4 flex-1 min-w-0">
-            <div>
-              <h2 className="text-2xl font-bold text-[rgb(var(--text))] mb-2">AI-Powered Travel Discovery</h2>
-              <p className="text-sm leading-relaxed text-[rgb(var(--muted))]">
-                Describe your perfect trip and our AI finds the best spots instantly. From hidden gems to must-see landmarks.
-              </p>
-            </div>
-            {/* When suggestions are open, reserve space so dropdown stays inside card and Curated results stay below */}
+        <div className="space-y-4">
             <div
               className="relative transition-[padding] duration-200 ease-out"
               style={{ paddingBottom: suggestionsOpen ? DROPDOWN_MAX_H : 0 }}
@@ -715,14 +713,29 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
                 </Button>
               </form>
             </div>
-          </div>
+
+          {/* Quick prompt chips - shown when no search has been performed */}
+          {!allItems.length && !loading && !isPending && !q.trim() && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => runSearch(prompt)}
+                  className="prompt-chip rounded-full border px-3.5 py-2 text-xs font-medium transition-all duration-200 hover:translate-y-[-1px]"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Results Section - clear separation, never covered by dropdown */}
+      {/* Results Section - only shown after a search */}
+      {(allItems.length > 0 || loading || isPending || error) && (
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" role="region" aria-label="Search results">
         <section className="space-y-4">
-          {/* Search Filters */}
           {allItems.length > 0 && (
             <SearchFilters
               filters={filters}
@@ -758,7 +771,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
                 <Compass className="h-8 w-8 text-[rgb(var(--accent))]" />
               </div>
               <p className="text-sm text-[rgb(var(--muted))]">
-                Search anywhere and discover amazing places.
+                No places found. Try a different search.
               </p>
             </div>
           ) : (
@@ -794,6 +807,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
           </aside>
         )}
       </div>
+      )}
     </div>
   )
 }

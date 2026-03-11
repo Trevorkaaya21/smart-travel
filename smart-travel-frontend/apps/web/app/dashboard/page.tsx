@@ -37,10 +37,10 @@ export default function DashboardPage() {
               <p className="text-xs uppercase tracking-[0.35em] font-semibold text-[rgb(var(--accent))]">Discover</p>
             </div>
             <h1 className="text-3xl font-bold leading-tight text-[rgb(var(--text))] md:text-4xl">
-              Find the next stop on your dream itinerary
+              Where do you want to go?
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-[rgb(var(--muted))]">
-              ML-powered place discovery with semantic search. Find restaurants, clubs, hotels, and attractions anywhere.
+              Search for restaurants, hotels, attractions, and hidden gems anywhere in the world.
             </p>
           </div>
           <div
@@ -51,7 +51,7 @@ export default function DashboardPage() {
               borderColor: isGuest ? 'rgba(var(--warning) / 0.35)' : 'rgba(var(--success) / 0.35)',
             }}
           >
-            {isGuest ? 'Guest mode · read only' : 'Signed in · full workspace'}
+            {isGuest ? 'Guest · search only' : 'Signed in · all features'}
           </div>
         </div>
       </header>

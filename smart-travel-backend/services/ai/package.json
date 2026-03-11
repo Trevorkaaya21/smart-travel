@@ -4,8 +4,8 @@
   "private": true,
   "description": "ML-powered recommendation, search, and optimization service",
   "scripts": {
-    "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 5000",
-    "start": "uvicorn app.main:app --host 0.0.0.0 --port 5000",
+    "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 5001",
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port 5001",
     "build": "echo 'Python service - no build step needed'",
     "typecheck": "echo 'Python service - skipping TypeScript check'"
   }
