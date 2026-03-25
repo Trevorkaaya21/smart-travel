@@ -169,10 +169,11 @@ export function GoogleMap({ markers, onError }: { markers: Marker[]; onError?: (
   return (
     <div
       ref={containerRef}
-      className="relative h-[520px] w-full rounded-3xl border border-white/15 bg-white/10 shadow-lg backdrop-blur-xl lg:h-[620px]"
+      className="relative h-[520px] w-full rounded-3xl shadow-lg backdrop-blur-xl lg:h-[620px]"
+      style={{ border: '1px solid var(--glass-border)', background: 'var(--glass-bg)' }}
     >
       {!ready && (
-        <div className="flex h-full items-center justify-center text-sm text-white/80">
+        <div className="flex h-full items-center justify-center text-sm text-[rgb(var(--muted))]">
           Loading map…
         </div>
       )}

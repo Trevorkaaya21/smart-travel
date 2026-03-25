@@ -24,7 +24,7 @@ export function TripCard({ id, name, start, end, status, imageUrl, onDelete }: P
       : 'Dates TBA'
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/60 dark:bg-white/5">
+    <div className="rounded-2xl" style={{ border: '1px solid var(--glass-border)', background: 'var(--glass-bg)' }}>
       <div className="relative h-44 w-full overflow-hidden rounded-t-2xl bg-black/20">
         {/* image */}
         <img

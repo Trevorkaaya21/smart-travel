@@ -10,7 +10,7 @@ const AiSearch = dynamic(() => import('@/components/search/ai-search'), {
   ssr: false,
   loading: () => (
     <div className="content-card animate-pulse">
-      <div className="h-32 rounded-2xl bg-white/10" />
+      <div className="h-32 rounded-2xl bg-slate-200 dark:bg-white/10" />
     </div>
   )
 })

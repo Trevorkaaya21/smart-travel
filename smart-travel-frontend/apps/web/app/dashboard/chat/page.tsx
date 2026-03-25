@@ -115,6 +115,12 @@ export default function TravelChatPage() {
 
   const authenticated = status === 'authenticated' && !!email
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('st_last_chat_visit', new Date().toISOString())
+    }
+  }, [])
+
   const conversationsQuery = useQuery({
     queryKey: ['chat', 'conversations', email],
     queryFn: () => fetchConversations(email!),

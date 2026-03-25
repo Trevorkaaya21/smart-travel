@@ -39,6 +39,24 @@ const accountNav: NavItem[] = [
   { href: '/dashboard/profile', label: 'Profile', icon: UserRound, requiresAuth: true },
 ]
 
+type Conversation = {
+  id: string
+  other_email: string
+  last_message_at?: string | null
+  last_message_sender?: string | null
+}
+
+function getLastChatVisit(): string {
+  if (typeof window === 'undefined') return new Date(0).toISOString()
+  return localStorage.getItem('st_last_chat_visit') ?? new Date(0).toISOString()
+}
+
+function markChatVisited() {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('st_last_chat_visit', new Date().toISOString())
+  }
+}
+
 export default function SidebarNav() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
@@ -51,6 +69,7 @@ export default function SidebarNav() {
   const guestMode = isGuest || status !== 'authenticated'
   const user = session?.user as any | undefined
   const email = user?.email as string | undefined
+
   const { data: profile } = useQuery({
     queryKey: ['profile', email],
     queryFn: async () => {
@@ -61,6 +80,37 @@ export default function SidebarNav() {
     },
     enabled: !!email && !guestMode,
   })
+
+  const { data: conversations } = useQuery({
+    queryKey: ['chat', 'conversations', email],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/v1/chat/conversations`, {
+        headers: { 'x-user-email': email! },
+      })
+      if (!res.ok) return []
+      const d = await res.json()
+      return (d?.conversations ?? []) as Conversation[]
+    },
+    enabled: !!email && !guestMode,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  })
+
+  const unreadCount = (() => {
+    if (!conversations?.length || !email) return 0
+    const lastVisit = getLastChatVisit()
+    const norm = email.trim().toLowerCase()
+    return conversations.filter((c) => {
+      if (!c.last_message_at) return false
+      if (c.last_message_sender?.trim().toLowerCase() === norm) return false
+      return new Date(c.last_message_at).getTime() > new Date(lastVisit).getTime()
+    }).length
+  })()
+
+  const isOnChat = pathname === '/dashboard/chat' || pathname.startsWith('/dashboard/chat/')
+  useEffect(() => {
+    if (isOnChat && email) markChatVisited()
+  }, [isOnChat, email])
   const rawAvatar = profile?.avatar_url ?? user?.image ?? null
   const avatarUrl = stringImageUrl(rawAvatar) ?? null
   const displayName = (profile?.display_name as string | undefined) || emailToUsername(email) || 'Guest Explorer'
@@ -109,14 +159,17 @@ export default function SidebarNav() {
         {mainNav.map((item) => {
           let active = pathname === item.href || pathname.startsWith(item.href + '/')
           if (item.href === '/dashboard/trips' && pathname.startsWith('/trip/')) active = true
+          const navItem = item.href === '/dashboard/chat' && unreadCount > 0
+            ? { ...item, notifs: unreadCount }
+            : item
           return (
             <NavLink
-              key={item.href}
-              item={item}
+              key={navItem.href}
+              item={navItem}
               active={active}
               open={open}
               guestMode={guestMode}
-              onClick={(e) => handleNavClick(e, item)}
+              onClick={(e) => handleNavClick(e, navItem)}
             />
           )
         })}
@@ -276,13 +329,18 @@ function NavLink({
       aria-current={active ? 'page' : undefined}
       title={!open ? item.label : undefined}
     >
-      <span className={cn('ui-liquid-icon flex shrink-0 items-center justify-center', open ? 'h-9 w-9' : 'h-10 w-10')}>
+      <span className={cn('relative ui-liquid-icon flex shrink-0 items-center justify-center', open ? 'h-9 w-9' : 'h-10 w-10')}>
         <Icon className="h-4 w-4" aria-hidden />
+        {!open && !!item.notifs && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[rgb(var(--accent))] text-[8px] font-bold text-white ring-2 ring-[rgb(var(--bg))]">
+            {item.notifs > 9 ? '9+' : item.notifs}
+          </span>
+        )}
       </span>
       {open && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
-      {item.notifs && open && (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[rgb(var(--accent))] text-[10px] font-bold text-white">
-          {item.notifs}
+      {open && !!item.notifs && (
+        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[rgb(var(--accent))] px-1 text-[10px] font-bold text-white">
+          {item.notifs > 99 ? '99+' : item.notifs}
         </span>
       )}
       {item.requiresAuth && guestMode && open && <span className="badge-pro shrink-0">Pro</span>}

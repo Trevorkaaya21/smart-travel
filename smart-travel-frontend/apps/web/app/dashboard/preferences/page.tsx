@@ -43,23 +43,23 @@ export default function PreferencesPage() {
 
   return (
     <main className="space-y-6">
-      <div className="glass p-4 rounded-2xl border border-white/15">
-        <h1 className="text-2xl font-semibold">Preferences</h1>
-        <p className="opacity-70 text-sm">Tune search results and AI planning.</p>
+      <div className="content-header">
+        <h1 className="text-2xl font-semibold text-[rgb(var(--text))]">Preferences</h1>
+        <p className="text-sm text-[rgb(var(--muted))]">Tune search results and AI planning.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="glass p-4 rounded-2xl border border-white/15 space-y-3">
-          <div className="font-medium">Interests</div>
+        <div className="content-card space-y-3">
+          <div className="font-medium text-[rgb(var(--text))]">Interests</div>
           <div className="flex flex-wrap gap-2">
             {TAGS.map(t => (
               <button
                 key={t}
                 onClick={() => toggle(t)}
-                className={`rounded-xl px-3 py-1 border ${
+                className={`rounded-xl px-3 py-1.5 border text-sm font-medium transition-all ${
                   prefs.interests.includes(t)
-                    ? 'bg-white/20 border-white/20'
-                    : 'bg-white/5 border-white/10'
+                    ? 'bg-[rgb(var(--accent))]/15 border-[rgb(var(--accent))]/40 text-[rgb(var(--accent))]'
+                    : 'btn-ghost'
                 }`}
               >
                 {t}
@@ -68,15 +68,17 @@ export default function PreferencesPage() {
           </div>
         </div>
 
-        <div className="glass p-4 rounded-2xl border border-white/15 space-y-3">
-          <div className="font-medium">Budget</div>
+        <div className="content-card space-y-3">
+          <div className="font-medium text-[rgb(var(--text))]">Budget</div>
           <div className="flex gap-2">
             {(['low','medium','high'] as const).map(b => (
               <button
                 key={b}
                 onClick={() => setPrefs(p => ({ ...p, budget: b }))}
-                className={`rounded-xl px-3 py-1 border ${
-                  prefs.budget === b ? 'bg-white/20 border-white/20' : 'bg-white/5 border-white/10'
+                className={`rounded-xl px-3 py-1.5 border text-sm font-medium capitalize transition-all ${
+                  prefs.budget === b
+                    ? 'bg-[rgb(var(--accent))]/15 border-[rgb(var(--accent))]/40 text-[rgb(var(--accent))]'
+                    : 'btn-ghost'
                 }`}
               >
                 {b}
@@ -84,18 +86,18 @@ export default function PreferencesPage() {
             ))}
           </div>
 
-          <label className="block mt-3 text-sm opacity-80">Max places per day</label>
+          <label className="block mt-3 text-sm text-[rgb(var(--muted))]">Max places per day</label>
           <input
             type="number"
             min={1}
-            className="w-32 rounded-xl bg-white/10 border border-white/15 px-3 py-1"
+            className="input-surface w-32"
             value={prefs.maxPerDay ?? 5}
             onChange={e => setPrefs(p => ({ ...p, maxPerDay: Number(e.target.value || 5) }))}
           />
 
-          <label className="block mt-3 text-sm opacity-80">Home Base (city)</label>
+          <label className="block mt-3 text-sm text-[rgb(var(--muted))]">Home Base (city)</label>
           <input
-            className="rounded-xl bg-white/10 border border-white/15 px-3 py-1 w-full"
+            className="input-surface w-full"
             placeholder="e.g., New York"
             value={prefs.home ?? ''}
             onChange={e => setPrefs(p => ({ ...p, home: e.target.value }))}
@@ -104,10 +106,10 @@ export default function PreferencesPage() {
       </div>
 
       <div className="flex gap-2">
-        <button onClick={save} className="btn">Save</button>
+        <button onClick={save} className="btn btn-primary">Save</button>
         <button
           onClick={() => { localStorage.removeItem('st.prefs'); location.reload() }}
-          className="rounded-xl border border-white/15 bg-white/5 px-3 py-1"
+          className="btn btn-ghost"
         >
           Reset
         </button>

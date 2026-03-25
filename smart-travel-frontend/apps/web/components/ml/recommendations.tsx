@@ -155,7 +155,7 @@ export function MLRecommendations() {
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {recQuery.isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-44 w-56 flex-shrink-0 animate-pulse rounded-xl bg-white/5" />
+                <div key={i} className="h-44 w-56 flex-shrink-0 animate-pulse rounded-xl bg-slate-200 dark:bg-white/5" />
               ))
             ) : (
               recommendations.map(place => (
@@ -176,7 +176,7 @@ export function MLRecommendations() {
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {trendQuery.isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-44 w-56 flex-shrink-0 animate-pulse rounded-xl bg-white/5" />
+                <div key={i} className="h-44 w-56 flex-shrink-0 animate-pulse rounded-xl bg-slate-200 dark:bg-white/5" />
               ))
             ) : (
               trending.map(place => (

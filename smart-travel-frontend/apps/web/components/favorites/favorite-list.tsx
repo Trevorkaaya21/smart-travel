@@ -79,14 +79,14 @@ export default function FavoriteList() {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Favorites</h2>
       {favsQ.isLoading && (
-        <div className="rounded-2xl border border-white/15 bg-white/5 p-4">Loading favorites…</div>
+        <div className="content-subtle p-4">Loading favorites…</div>
       )}
       {!favsQ.isLoading && items.length === 0 && (
-        <div className="rounded-2xl border border-white/15 bg-white/5 p-4">No favorites yet.</div>
+        <div className="content-subtle p-4">No favorites yet.</div>
       )}
       <div className="grid gap-2">
         {items.map(({ place_id }) => (
-          <div key={place_id} className="rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center justify-between">
+          <div key={place_id} className="content-subtle p-3 flex items-center justify-between">
             <div className="text-sm">
               <div className="font-medium">{place_id}</div>
               <div className="text-xs opacity-70">Saved place</div>
@@ -101,14 +101,14 @@ export default function FavoriteList() {
                   })
                 }}
                 disabled={addMut.isPending || tripLoading}
-                className="rounded-xl border border-white/15 bg-white/10 px-3 py-1 text-sm"
+                className="btn btn-ghost rounded-xl px-3 py-1 text-sm"
               >
                 {addMut.isPending ? 'Adding…' : '➕ Add to Trip'}
               </Button>
               <Button
                 onClick={() => removeMut.mutate(place_id)}
                 disabled={removeMut.isPending}
-                className="rounded-xl border border-white/15 bg-white/5 px-3 py-1 text-sm"
+                className="btn btn-ghost rounded-xl px-3 py-1 text-sm"
               >
                 {removeMut.isPending ? 'Removing…' : 'Remove'}
               </Button>

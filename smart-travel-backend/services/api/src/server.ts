@@ -266,9 +266,9 @@ Return ONLY a JSON array of strings, no explanations. Each suggestion should be 
 
     // Validate and clean suggestions
     suggestions = suggestions
-      .filter(s => typeof s === 'string' && s.length >= 3 && s.length <= 100)
+      .filter((s: any) => typeof s === 'string' && s.length >= 3 && s.length <= 100)
       .slice(0, 8)
-      .map(s => s.trim())
+      .map((s: any) => s.trim())
 
     if (suggestions.length === 0) {
       return generateFallbackSuggestions(partialQuery)
@@ -1518,8 +1518,8 @@ server.get('/v1/trips', {}, async (req, reply) => {
       daysCount = Math.max(1, diff + 1)
     }
 
-    // Use place photo if available (photos are saved when places are added)
-    const placeData = firstPlace?.places as any
+    const rawPlaces: any = firstPlace?.places
+    const placeData = Array.isArray(rawPlaces) ? rawPlaces[0] : rawPlaces
     const imageUrl = placeData?.photo || null
     const imageCredit = placeData?.photo_credit || null
 
@@ -2247,11 +2247,29 @@ server.get('/v1/chat/conversations', {}, async (req, reply) => {
       if (isMissingTableOrColumn(error)) return { conversations: [] }
       throw error
     }
+
+    const convIds = (rows ?? []).map((r: any) => r.id as string)
+    let lastMsgMap: Record<string, { at: string; sender: string }> = {}
+    if (convIds.length > 0) {
+      for (const cid of convIds) {
+        const { data: latest } = await supa
+          .from('chat_messages')
+          .select('created_at, sender_email')
+          .eq('conversation_id', cid)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (latest?.[0]) lastMsgMap[cid] = { at: latest[0].created_at, sender: latest[0].sender_email }
+      }
+    }
+
     const list = (rows ?? []).map((r: any) => ({
       id: r.id,
       other_email: conversationParticipant(r, email),
       created_at: r.created_at,
+      last_message_at: lastMsgMap[r.id]?.at ?? r.created_at,
+      last_message_sender: lastMsgMap[r.id]?.sender ?? null,
     }))
+    list.sort((a: any, b: any) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
     return { conversations: list }
   } catch (e: any) {
     if (e.statusCode) return reply.code(e.statusCode).send({ error: e.message })
@@ -2448,7 +2466,7 @@ server.post('/v1/ml/recommend', {}, async (req, reply) => {
   const body = req.body as any
   if (!body?.user_email) return reply.code(400).send({ error: 'user_email required' })
   const result = await proxyToML('/v1/ml/recommend', 'POST', body)
-  if (result.error) return reply.code(result.status).send({ error: result.message })
+  if (result.error) return { recommendations: [] }
   return result
 })
 
@@ -2482,7 +2500,7 @@ server.post('/v1/ml/suggest', {}, async (req, reply) => {
 // ML Trending Destinations
 server.get('/v1/ml/trending', {}, async (_req, reply) => {
   const result = await proxyToML('/v1/ml/trending', 'GET')
-  if (result.error) return reply.code(result.status).send({ error: result.message })
+  if (result.error) return { trending: [] }
   return result
 })
 

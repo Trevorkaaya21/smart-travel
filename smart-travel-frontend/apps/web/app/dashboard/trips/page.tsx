@@ -209,7 +209,7 @@ export default function TripsPage() {
             <h2 className="text-lg font-semibold">Create a new trip</h2>
             <p className="form-helper uppercase tracking-[0.3em]">Name it and get started</p>
           </div>
-          <div className="flex w-full flex-col gap-3 rounded-3xl border border-white/15 bg-white/10 p-4 shadow md:flex-row md:flex-wrap md:items-end">
+          <div className="content-subtle flex w-full flex-col gap-3 rounded-3xl p-4 md:flex-row md:flex-wrap md:items-end">
             <Input
               value={newTrip}
               onChange={(e) => setNewTrip(e.target.value)}
@@ -257,7 +257,7 @@ export default function TripsPage() {
         {/* Grouped trip sections — Expedia-style */}
         {tripsQuery.isLoading ? (
           <div className="space-y-10">
-            <div className="h-8 w-48 animate-pulse rounded bg-white/10" />
+            <div className="h-8 w-48 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
             <div className="grid gap-4 lg:grid-cols-2">
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="h-72 animate-pulse rounded-2xl content-subtle" />

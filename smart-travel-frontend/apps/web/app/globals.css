@@ -36,14 +36,14 @@
     rgba(6, 182, 212, 0.05),
     transparent 60%
   );
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.08);
   /* Light glass */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(15, 23, 42, 0.1);
-  --glass-bg-hover: rgba(255, 255, 255, 0.95);
-  --glass-input-bg: rgba(255, 255, 255, 0.9);
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(15, 23, 42, 0.18);
+  --glass-bg-hover: rgba(255, 255, 255, 1);
+  --glass-input-bg: rgba(255, 255, 255, 0.95);
 }
 
 .dark {
@@ -165,7 +165,7 @@
 
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200;
-    border-color: rgba(var(--border) / 0.3);
+    border-color: var(--glass-border);
     background: var(--glass-bg);
     color: rgb(var(--text));
     box-shadow: var(--shadow-sm);
@@ -194,8 +194,8 @@
   }
 
   .btn-primary:hover {
-    filter: brightness(1.05);
-    box-shadow: 0 2px 8px rgba(var(--accent) / 0.3);
+    filter: brightness(1.1);
+    box-shadow: 0 2px 8px rgba(var(--accent) / 0.35);
   }
 
   .btn-primary:active {
@@ -204,8 +204,9 @@
 
   .btn-ghost {
     background: transparent;
-    border-color: rgba(var(--border) / 0.3);
+    border-color: var(--glass-border);
     box-shadow: none;
+    color: rgb(var(--text));
   }
 
   .btn-ghost:hover {
@@ -285,7 +286,7 @@
 
   .timeline-dropzone {
     @apply rounded-xl border border-dashed p-4 text-center text-sm;
-    border-color: rgba(var(--border) / 0.25);
+    border-color: var(--glass-border);
     color: rgb(var(--muted));
     background: var(--glass-bg);
   }
@@ -307,7 +308,7 @@
   .timeline-select,
   .timeline-input {
     @apply rounded-lg border px-2.5 py-1.5 text-xs;
-    border-color: rgba(var(--border) / 0.25);
+    border-color: var(--glass-border);
     background: var(--glass-input-bg);
     color: rgb(var(--text));
   }
@@ -375,7 +376,7 @@
 .input-surface,
 .textarea-surface {
   @apply rounded-xl border px-4 py-3 text-sm transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60;
-  border-color: rgba(var(--border) / 0.25);
+  border-color: var(--glass-border);
   background: var(--glass-input-bg);
   color: rgb(var(--text));
   box-shadow: var(--shadow-sm);
@@ -388,7 +389,7 @@
 
 .input-surface:hover,
 .textarea-surface:hover {
-  border-color: rgba(var(--border) / 0.4);
+  border-color: rgba(var(--border) / 0.5);
   background: var(--glass-bg-hover);
 }
 

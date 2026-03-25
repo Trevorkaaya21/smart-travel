@@ -194,7 +194,7 @@ export function PlaceCard({ place, defaultTripId }: { place: Place; defaultTripI
   const displayImage = heroImage ?? placeImage?.url ?? null
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden backdrop-blur-xl">
+    <div className="rounded-2xl overflow-hidden backdrop-blur-xl" style={{ border: '1px solid var(--glass-border)', background: 'var(--glass-bg)' }}>
       {displayImage && (
         <div className="relative">
           <img src={displayImage} alt={place.name} className="h-40 w-full object-cover" />
@@ -214,14 +214,14 @@ export function PlaceCard({ place, defaultTripId }: { place: Place; defaultTripI
         <div className="flex gap-2 pt-2">
           <button
             onClick={addToTrip}
-            className="rounded-xl border border-white/15 px-3 py-1 text-sm hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-ghost rounded-xl px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             disabled={adding}
           >
             {adding ? 'Adding…' : addedToTrip ? 'Added' : 'Add to Trip'}
           </button>
           <button
             onClick={toggleFavorite}
-            className="rounded-xl border border-white/15 px-3 py-1 text-sm hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-ghost rounded-xl px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             disabled={savingFavorite}
           >
             {savingFavorite ? 'Saving…' : savedFavorite ? 'Saved' : 'Favorite'}
