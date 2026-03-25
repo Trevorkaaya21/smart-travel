@@ -9,7 +9,7 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Home, MapPin, Plus, Minus, Trash2, GripVertical, Pencil, Check, X, Compass, ExternalLink } from 'lucide-react'
+import { Home, MapPin, Plus, Minus, Trash2, GripVertical, Pencil, Check, X, Compass, ExternalLink, NotebookPen } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
 import { cleanTripName, computeTripDays } from '@/lib/trip-utils'
 import { ShareButton } from '@/components/trip/share-button'
@@ -542,6 +542,13 @@ export default function TripPage() {
             >
               <Compass className="h-3.5 w-3.5" />
               Add places
+            </Link>
+            <Link
+              href={`/dashboard/diary?tripId=${encodeURIComponent(tripId)}&tripName=${encodeURIComponent(tripName)}`}
+              className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold"
+            >
+              <NotebookPen className="h-3.5 w-3.5" />
+              Diary
             </Link>
             <Link href="/dashboard/trips" className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold">
               <Home className="h-3.5 w-3.5" />

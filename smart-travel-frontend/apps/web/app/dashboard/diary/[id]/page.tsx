@@ -6,7 +6,8 @@ import { useParams } from 'next/navigation'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Camera, Loader2, ArrowLeft, ImageOff } from 'lucide-react'
+import { Camera, Loader2, ArrowLeft, ImageOff, MapPinned } from 'lucide-react'
+import { cleanTripName } from '@/lib/trip-utils'
 import { API_BASE } from '@/lib/api'
 import { stringImageUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -24,7 +25,7 @@ type DiaryEntry = {
 }
 
 type DiaryEntriesResponse = {
-  diary?: { title?: string | null }
+  diary?: { title?: string | null; trip_id?: string | null; trip_name?: string | null }
   items: DiaryEntry[]
 }
 
@@ -184,23 +185,36 @@ export default function DiaryDetailPage() {
   }
 
   const diaryTitle = entriesQ.data?.diary?.title ?? 'Your travel diary'
+  const linkedTripId = entriesQ.data?.diary?.trip_id ?? null
+  const linkedTripName = entriesQ.data?.diary?.trip_name ?? null
   const isSaving = addMut.isPending
   const canSubmit = text.trim().length > 0 || !!photoPreview
 
   return (
     <div className="flex h-full flex-col gap-8 text-[rgb(var(--text))]">
       <header className="content-header space-y-4">
-        <Link href="/dashboard/diary" className="btn btn-ghost w-fit rounded-xl px-4 py-2 text-sm font-semibold">
-          <ArrowLeft className="h-4 w-4" />
-          Back to diary
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/dashboard/diary" className="btn btn-ghost w-fit rounded-xl px-4 py-2 text-sm font-semibold">
+            <ArrowLeft className="h-4 w-4" />
+            Back to diary
+          </Link>
+          {linkedTripId && (
+            <Link
+              href={`/trip/${linkedTripId}`}
+              className="btn btn-ghost w-fit rounded-xl px-4 py-2 text-sm font-semibold text-[rgb(var(--accent))]"
+            >
+              <MapPinned className="h-4 w-4" />
+              View trip{linkedTripName ? `: ${cleanTripName(linkedTripName)}` : ''}
+            </Link>
+          )}
+        </div>
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.35em] text-[color-mix(in_oklab,rgb(var(--text))_65%,rgb(var(--muted))_35%)]">
             Travel diary
           </p>
           <h1 className="text-3xl font-semibold md:text-4xl">{diaryTitle}</h1>
           <p className="max-w-2xl text-sm text-[color-mix(in_oklab,rgb(var(--text))_72%,rgb(var(--muted))_28%)]">
-            Add context, reflections, and photos for each day. Entries sync with your Smart Travel timeline so you can relive the journey in detail.
+            Add reflections and photos for each day. {linkedTripName ? `Connected to your "${cleanTripName(linkedTripName)}" trip.` : 'Link this diary to a trip from the diary list.'}
           </p>
         </div>
       </header>

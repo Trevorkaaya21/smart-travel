@@ -1963,17 +1963,35 @@ server.delete('/v1/favorites', {}, async (req, reply) => {
 server.get('/v1/diary', {}, async (req, reply) => {
   const email = ((req.query as any).user_email as string | undefined)?.toLowerCase()
   if (!email) return reply.code(400).send({ error: 'user_email_required' })
-  const { data, error } = await supa.from('diaries').select('*').eq('owner_email', email).order('created_at', { ascending: false })
+  const tripId = (req.query as any).trip_id as string | undefined
+  let query = supa.from('diaries').select('*').eq('owner_email', email)
+  if (tripId) query = query.eq('trip_id', tripId)
+  const { data, error } = await query.order('created_at', { ascending: false })
   if (error) return reply.code(500).send({ error: 'db_error' })
-  return { diaries: data ?? [] }
+
+  const diaries = data ?? []
+  const tripIds = [...new Set(diaries.map((d: any) => d.trip_id).filter(Boolean))]
+  let tripNames: Record<string, string> = {}
+  if (tripIds.length > 0) {
+    const { data: trips } = await supa.from('trips').select('id, name').in('id', tripIds)
+    if (trips) tripNames = Object.fromEntries(trips.map((t: any) => [t.id, t.name]))
+  }
+  const enriched = diaries.map((d: any) => ({
+    ...d,
+    trip_name: d.trip_id ? (tripNames[d.trip_id] ?? null) : null,
+  }))
+  return { diaries: enriched }
 })
 
 server.post('/v1/diary', {}, async (req, reply) => {
   try {
     const email = ensureEmail(req.headers)
     const title = (req.body as any)?.title as string | undefined
+    const tripId = (req.body as any)?.trip_id as string | undefined
     if (!title) return reply.code(400).send({ error: 'title_required' })
-    const { data, error } = await supa.from('diaries').insert({ owner_email: email, title }).select('id').single()
+    const row: Record<string, unknown> = { owner_email: email, title }
+    if (tripId) row.trip_id = tripId
+    const { data, error } = await supa.from('diaries').insert(row).select('id').single()
     if (error) throw error
     return { id: data!.id }
   } catch (e: any) {
@@ -1988,13 +2006,19 @@ server.get('/v1/diary/:id/entries', {}, async (req, reply) => {
 
     const { data: diary, error: dErr } = await supa
       .from('diaries')
-      .select('title, owner_email')
+      .select('title, owner_email, trip_id')
       .eq('id', id)
       .single()
 
     if (dErr || !diary) return reply.code(404).send({ error: 'not_found' })
     if (email && diary.owner_email?.toLowerCase() !== email) {
       return reply.code(403).send({ error: 'forbidden' })
+    }
+
+    let tripName: string | null = null
+    if (diary.trip_id) {
+      const { data: trip } = await supa.from('trips').select('name').eq('id', diary.trip_id).single()
+      if (trip) tripName = trip.name
     }
 
     const { data, error } = await supa
@@ -2009,7 +2033,7 @@ server.get('/v1/diary/:id/entries', {}, async (req, reply) => {
       ...entry,
       photo_url: entry.photo_path ? publicDiaryPhotoUrl(entry.photo_path) : null,
     }))
-    return { diary, items }
+    return { diary: { ...diary, trip_name: tripName }, items }
   } catch (e: any) {
     return reply.code(e.statusCode || 500).send({ error: e.message || 'db_error' })
   }

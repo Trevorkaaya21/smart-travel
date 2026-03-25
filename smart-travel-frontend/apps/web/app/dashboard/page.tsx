@@ -1,10 +1,10 @@
-// apps/web/app/dashboard/page.tsx
 'use client'
 
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useGuest } from '@/lib/useGuest'
 import { Compass } from 'lucide-react'
+import { TripReminders } from '@/components/trip/trip-reminders'
 
 const AiSearch = dynamic(() => import('@/components/search/ai-search'), {
   ssr: false,
@@ -56,7 +56,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* ML-Powered Recommendations & Trending */}
+      <TripReminders />
+
       <MLRecommendations />
 
       <AiSearch addToTripId={addToTripId} />

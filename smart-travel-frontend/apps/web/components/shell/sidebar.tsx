@@ -107,7 +107,8 @@ export default function SidebarNav() {
       {/* ── Main Nav ──────────────────────────────── */}
       <nav className="flex flex-col gap-1" aria-label="Main">
         {mainNav.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          let active = pathname === item.href || pathname.startsWith(item.href + '/')
+          if (item.href === '/dashboard/trips' && pathname.startsWith('/trip/')) active = true
           return (
             <NavLink
               key={item.href}

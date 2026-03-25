@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList, Navigation } from 'lucide-react'
+import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList, Navigation, NotebookPen } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
@@ -660,6 +660,13 @@ function TripCard({
                   >
                     <MapPin className="h-3.5 w-3.5" />
                     Add more places
+                  </Link>
+                  <Link
+                    href={`/dashboard/diary?tripId=${encodeURIComponent(trip.id)}&tripName=${encodeURIComponent(displayName)}`}
+                    className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold"
+                  >
+                    <NotebookPen className="h-3.5 w-3.5" />
+                    Diary
                   </Link>
                 </>
               )}
