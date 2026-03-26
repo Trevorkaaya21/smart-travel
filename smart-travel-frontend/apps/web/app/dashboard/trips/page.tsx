@@ -63,8 +63,7 @@ function groupTrips(trips: Trip[]): Record<TripGroup, Trip[]> {
 async function listTrips(email: string) {
   const res = await fetch(`${API_BASE}/v1/trips?owner_email=${encodeURIComponent(email)}`, { cache: 'no-store' })
   if (!res.ok) throw new Error('Could not load trips')
-  const data = await res.json()
-  return (data?.trips as Trip[]) ?? []
+  return res.json()
 }
 
 async function createTrip(
@@ -152,10 +151,15 @@ export default function TripsPage() {
     onError: () => toast.error('Unable to delete trip right now.'),
   })
 
-  const grouped = React.useMemo(() => {
-    if (!tripsQuery.data?.length) return { planning: [], active: [], upcoming: [], past: [] }
-    return groupTrips(tripsQuery.data)
+  const tripsArray: Trip[] = React.useMemo(() => {
+    const raw = tripsQuery.data
+    return Array.isArray(raw) ? raw : (raw as any)?.trips ?? []
   }, [tripsQuery.data])
+
+  const grouped = React.useMemo(() => {
+    if (!tripsArray.length) return { planning: [], active: [], upcoming: [], past: [] }
+    return groupTrips(tripsArray)
+  }, [tripsArray])
 
   if (status !== 'authenticated' || !email) {
     return (
@@ -264,7 +268,7 @@ export default function TripsPage() {
               ))}
             </div>
           </div>
-        ) : tripsQuery.data && tripsQuery.data.length > 0 ? (
+        ) : tripsArray.length > 0 ? (
           <div className="space-y-10">
             {/* Planning - Show first for emphasis */}
             <TripSection

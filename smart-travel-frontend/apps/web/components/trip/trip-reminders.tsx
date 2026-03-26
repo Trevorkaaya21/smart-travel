@@ -40,17 +40,17 @@ export function TripReminders() {
     queryKey: ['trips', email],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/v1/trips?owner_email=${encodeURIComponent(email!)}`, { cache: 'no-store' })
-      if (!res.ok) return []
-      const data = await res.json()
-      return (data?.trips as Trip[]) ?? []
+      if (!res.ok) return { trips: [] }
+      return res.json()
     },
     enabled: status === 'authenticated' && !!email,
     staleTime: 60_000,
   })
 
   const upcomingTrips = React.useMemo(() => {
-    if (!tripsQ.data) return []
-    return tripsQ.data
+    const raw = tripsQ.data
+    const trips: Trip[] = Array.isArray(raw) ? raw : (raw as any)?.trips ?? []
+    return trips
       .filter((t) => {
         if (!t.start_date) return false
         const days = daysUntil(t.start_date)

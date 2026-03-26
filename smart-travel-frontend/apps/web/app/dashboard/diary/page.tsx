@@ -23,9 +23,8 @@ async function listDiaries(email: string) {
 
 async function listTrips(email: string) {
   const res = await fetch(`${API_BASE}/v1/trips?owner_email=${encodeURIComponent(email)}`, { cache: 'no-store' })
-  if (!res.ok) return []
-  const data = await res.json()
-  return (data?.trips as Trip[]) ?? []
+  if (!res.ok) return { trips: [] }
+  return res.json()
 }
 
 async function createDiary(title: string, email: string, tripId?: string) {
@@ -97,7 +96,8 @@ export default function DiaryPage() {
   }
 
   const diaries = diariesQuery.data?.diaries ?? []
-  const trips = tripsQuery.data ?? []
+  const rawTrips = tripsQuery.data
+  const trips: Trip[] = Array.isArray(rawTrips) ? rawTrips : (rawTrips as any)?.trips ?? []
 
   // If we arrived with ?tripId=... and a diary already exists for that trip, navigate to it
   React.useEffect(() => {

@@ -73,9 +73,8 @@ export default function FavoritesPage() {
     queryKey: ['trips', email],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/v1/trips?owner_email=${encodeURIComponent(email!)}`, { cache: 'no-store' })
-      if (!res.ok) return []
-      const data = await res.json()
-      return (data?.trips as Trip[]) ?? []
+      if (!res.ok) return { trips: [] }
+      return res.json()
     },
     enabled: status === 'authenticated' && !!email,
   })
@@ -166,7 +165,8 @@ export default function FavoritesPage() {
   }
 
   const favorites = favoritesQuery.data ?? []
-  const userTrips = tripsQuery.data ?? []
+  const rawTrips = tripsQuery.data
+  const userTrips: Trip[] = Array.isArray(rawTrips) ? rawTrips : (rawTrips as any)?.trips ?? []
 
   return (
     <div className="flex h-full flex-col gap-8 text-[rgb(var(--text))]">
