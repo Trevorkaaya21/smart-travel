@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, MapPin, X, Plane, NotebookPen, Sparkles } from 'lucide-react'
+import { CalendarDays, X, Plane, NotebookPen, Sparkles } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
 import { cleanTripName, computeTripDays } from '@/lib/trip-utils'
 

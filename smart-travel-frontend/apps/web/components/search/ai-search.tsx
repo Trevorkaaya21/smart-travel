@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { Wand2, Compass, Heart, MapPin, Search, ChevronDown, X as XIcon, Users } from 'lucide-react'
+import { Compass, Heart, MapPin, Search, ChevronDown, X as XIcon } from 'lucide-react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { useDefaultTrip } from '@/lib/useDefaultTrip'
 import { useGuest } from '@/lib/useGuest'
@@ -72,12 +72,12 @@ type AiSearchProps = { addToTripId?: string; overlayMode?: boolean }
 
 export default function AiSearch({ addToTripId, overlayMode }: AiSearchProps = {}) {
   const { isGuest } = useGuest()
-  const { defaultTripId, isLoading: tripLoading, error: tripError } = useDefaultTrip()
+  const { defaultTripId } = useDefaultTrip()
   const { data: session } = useSession()
   const queryClient = useQueryClient()
   const rawEmail = session?.user?.email
   const email = React.useMemo(() => resolveEmail(rawEmail), [rawEmail])
-  const targetTripId = addToTripId ?? defaultTripId
+  const _targetTripId = addToTripId ?? defaultTripId
   const [addToTripName, setAddToTripName] = React.useState<string | null>(null)
   
   // Trip selector state
@@ -529,7 +529,7 @@ export default function AiSearch({ addToTripId, overlayMode }: AiSearchProps = {
       })
       
       setPendingPlace(null)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to create trip', {
         description: 'Please try again',
       })

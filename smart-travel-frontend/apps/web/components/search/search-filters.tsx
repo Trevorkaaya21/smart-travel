@@ -6,9 +6,8 @@
 'use client'
 
 import * as React from 'react'
-import { X, SlidersHorizontal, Star, DollarSign, MapPin } from 'lucide-react'
+import { X, SlidersHorizontal, Star, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 type FilterState = {

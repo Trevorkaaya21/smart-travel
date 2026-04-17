@@ -113,7 +113,7 @@ export function Reviews({ placeId, placeName, userEmail, initialReviews = [] }: 
       toast.success('Review submitted!', {
         description: 'Thank you for sharing your experience',
       })
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to submit review', {
         description: 'Please try again later',
       })
@@ -313,7 +313,7 @@ function ReviewCard({ review, userEmail, placeName }: { review: Review; userEmai
         body: JSON.stringify({ is_helpful: isHelpful }),
       })
       setHelpful(isHelpful)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to submit vote')
     }
   }

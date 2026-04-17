@@ -14,7 +14,6 @@ import { API_BASE } from '@/lib/api'
 import { cleanTripName, computeTripDays } from '@/lib/trip-utils'
 import { ShareButton } from '@/components/trip/share-button'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 type Trip = {

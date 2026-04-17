@@ -76,6 +76,18 @@ export default function DiaryPage() {
     onError: () => toast.error('Could not create diary entry.'),
   })
 
+  const diaries = React.useMemo(() => diariesQuery.data?.diaries ?? [], [diariesQuery.data])
+  const rawTrips = tripsQuery.data
+  const trips: Trip[] = Array.isArray(rawTrips) ? rawTrips : (rawTrips as any)?.trips ?? []
+
+  React.useEffect(() => {
+    if (!preselectedTripId || !diaries.length) return
+    const existing = diaries.find((d) => d.trip_id === preselectedTripId)
+    if (existing) {
+      window.location.href = `/dashboard/diary/${existing.id}`
+    }
+  }, [preselectedTripId, diaries])
+
   if (status !== 'authenticated' || !email) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center">
@@ -94,19 +106,6 @@ export default function DiaryPage() {
       </div>
     )
   }
-
-  const diaries = diariesQuery.data?.diaries ?? []
-  const rawTrips = tripsQuery.data
-  const trips: Trip[] = Array.isArray(rawTrips) ? rawTrips : (rawTrips as any)?.trips ?? []
-
-  // If we arrived with ?tripId=... and a diary already exists for that trip, navigate to it
-  React.useEffect(() => {
-    if (!preselectedTripId || !diaries.length) return
-    const existing = diaries.find((d) => d.trip_id === preselectedTripId)
-    if (existing) {
-      window.location.href = `/dashboard/diary/${existing.id}`
-    }
-  }, [preselectedTripId, diaries])
 
   return (
     <div className="flex h-full flex-col gap-8 text-[rgb(var(--text))]">

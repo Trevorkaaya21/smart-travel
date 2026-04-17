@@ -184,6 +184,7 @@ export default function TravelChatPage() {
         }
       } catch {}
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationsList])
 
   React.useEffect(() => {

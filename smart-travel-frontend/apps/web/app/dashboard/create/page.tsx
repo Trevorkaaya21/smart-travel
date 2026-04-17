@@ -799,7 +799,7 @@ function buildPrompt(input: {
     try {
       const start = new Date(startDate + 'T12:00:00')
       const dayOfWeek = start.toLocaleDateString(undefined, { weekday: 'long' })
-      const monthName = start.toLocaleDateString(undefined, { month: 'long' })
+      const _monthName = start.toLocaleDateString(undefined, { month: 'long' })
       dateText = `starting on ${dayOfWeek}, ${formatDateLabel(startDate)}`
       
       // Add seasonal context

@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import type { LucideIcon } from 'lucide-react'
 import {
   Compass, Wand2, MapPinned, Heart, NotebookPen, UserRound,
-  LogOut, LogIn, Sun, Moon, MessageCircle, ChevronsRight, Settings, HelpCircle,
+  LogOut, LogIn, Sun, Moon, MessageCircle, ChevronsRight,
 } from 'lucide-react'
 import { useGuest } from '@/lib/useGuest'
 import { cn, stringImageUrl } from '@/lib/utils'

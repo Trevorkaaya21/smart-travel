@@ -211,23 +211,24 @@ export function GoogleMapView({
           </div>
         </div>
       )}
-      {loaded && fullScreen && <MyLocationButton map={mapRef.current} />}
+      {loaded && fullScreen && <MyLocationButton mapRef={mapRef} />}
     </div>
   )
 }
 
-function MyLocationButton({ map }: { map: google.maps.Map | null }) {
+function MyLocationButton({ mapRef }: { mapRef: React.RefObject<google.maps.Map | null> }) {
   const handleClick = React.useCallback(() => {
-    if (!map || !navigator.geolocation) return
+    const m = mapRef.current
+    if (!m || !navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        map.panTo({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        map.setZoom(14)
+        m.panTo({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        m.setZoom(14)
       },
       () => {},
       { maximumAge: 60_000 }
     )
-  }, [map])
+  }, [mapRef])
 
   return (
     <button

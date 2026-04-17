@@ -9,7 +9,6 @@ import * as React from 'react'
 import { X, MapPin, Calendar, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 
 type QuickTripCreatorProps = {
   isOpen: boolean

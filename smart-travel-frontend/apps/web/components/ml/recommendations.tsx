@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkles, TrendingUp, MapPin, Star, ChevronRight, Heart, RefreshCw } from 'lucide-react'
+import { Sparkles, TrendingUp, MapPin, Star, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
 import { cn } from '@/lib/utils'

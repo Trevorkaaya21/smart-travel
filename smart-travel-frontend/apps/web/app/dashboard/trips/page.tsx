@@ -397,7 +397,7 @@ function TripSection({
   email,
   onDatesUpdate,
   updateTripDates,
-  isPlanning,
+  isPlanning: _isPlanning,
 }: {
   title: string
   subtitle: string
