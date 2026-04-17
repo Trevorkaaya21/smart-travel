@@ -96,6 +96,35 @@ export default function SidebarNav() {
     staleTime: 15_000,
   })
 
+  type SidebarTrip = { id: string; start_date?: string | null; end_date?: string | null }
+
+  const { data: tripsData } = useQuery({
+    queryKey: ['sidebar-trips', email],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/v1/trips?owner_email=${encodeURIComponent(email!)}`,
+        { cache: 'no-store' }
+      )
+      if (!res.ok) return []
+      const d = await res.json()
+      return (d?.trips ?? []) as SidebarTrip[]
+    },
+    enabled: !!email && !guestMode,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+  })
+
+  const upcomingTripsCount = (() => {
+    if (!tripsData?.length) return 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return tripsData.filter((t) => {
+      if (!t.start_date) return false
+      const start = new Date(t.start_date + 'T00:00:00')
+      return start >= today
+    }).length
+  })()
+
   const unreadCount = (() => {
     if (!conversations?.length || !email) return 0
     const lastVisit = getLastChatVisit()
@@ -159,9 +188,14 @@ export default function SidebarNav() {
         {mainNav.map((item) => {
           let active = pathname === item.href || pathname.startsWith(item.href + '/')
           if (item.href === '/dashboard/trips' && pathname.startsWith('/trip/')) active = true
-          const navItem = item.href === '/dashboard/chat' && unreadCount > 0
-            ? { ...item, notifs: unreadCount }
-            : item
+
+          let navItem = item
+          if (item.href === '/dashboard/chat' && unreadCount > 0) {
+            navItem = { ...item, notifs: unreadCount }
+          } else if (item.href === '/dashboard/trips' && upcomingTripsCount > 0) {
+            navItem = { ...item, notifs: upcomingTripsCount }
+          }
+
           return (
             <NavLink
               key={navItem.href}
@@ -176,34 +210,37 @@ export default function SidebarNav() {
       </nav>
 
       {/* ── Account Section ───────────────────────── */}
-      {open && (
-        <div className="mt-4 border-t pt-3" style={{ borderColor: 'var(--glass-border)' }}>
+      <div className={cn('mt-4 border-t pt-3', !open && 'mt-2 pt-2')} style={{ borderColor: 'var(--glass-border)' }}>
+        {open && (
           <div className="mb-1 px-3.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
             Account
           </div>
-          <nav className="flex flex-col gap-1">
-            {accountNav.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  active={active}
-                  open={open}
-                  guestMode={guestMode}
-                  onClick={(e) => handleNavClick(e, item)}
-                />
-              )
-            })}
-          </nav>
-        </div>
-      )}
+        )}
+        <nav className="flex flex-col gap-1">
+          {accountNav.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <NavLink
+                key={item.href}
+                item={item}
+                active={active}
+                open={open}
+                guestMode={guestMode}
+                onClick={(e) => handleNavClick(e, item)}
+              />
+            )
+          })}
+        </nav>
+      </div>
 
       {/* ── Bottom section ────────────────────────── */}
-      <div className="mt-auto space-y-3 pt-4">
+      <div className={cn('mt-auto pt-4', open ? 'space-y-3' : 'space-y-2 pt-2')}>
         {/* User card */}
         <div
-          className="flex items-center gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-sm"
+          className={cn(
+            'flex items-center rounded-xl border backdrop-blur-sm',
+            open ? 'gap-3 px-3 py-2.5' : 'justify-center px-0 py-2.5'
+          )}
           style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}
         >
           <div
@@ -236,10 +273,19 @@ export default function SidebarNav() {
 
         {/* Theme toggle */}
         <div
-          className="flex items-center justify-between rounded-xl border px-3 py-2.5 backdrop-blur-sm"
+          className={cn(
+            'flex items-center rounded-xl border backdrop-blur-sm',
+            open ? 'justify-between px-3 py-2.5' : 'justify-center px-0 py-2.5'
+          )}
           style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}
         >
-          <div className="flex items-center gap-2.5 text-[rgb(var(--accent))]">
+          <button
+            type="button"
+            onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className={cn('flex items-center text-[rgb(var(--accent))]', !open && 'justify-center w-full')}
+            aria-label={mounted ? `Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode` : 'Toggle theme'}
+            title={!open ? (mounted ? (resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode') : 'Theme') : undefined}
+          >
             <div className="relative h-5 w-5 shrink-0" aria-hidden>
               {mounted ? (
                 <>
@@ -250,7 +296,7 @@ export default function SidebarNav() {
                 <span className="block h-5 w-5" />
               )}
             </div>
-          </div>
+          </button>
           {open && (
             <button
               type="button"
@@ -264,23 +310,39 @@ export default function SidebarNav() {
         </div>
 
         {/* Guest sign-in */}
-        {guestMode && open && (
-          <button
-            type="button"
-            onClick={() => signIn('google')}
-            className="btn btn-primary w-full justify-center gap-2"
-            aria-label="Sign in with Google"
-          >
-            <LogIn className="h-4 w-4" aria-hidden />
-            Sign in with Google
-          </button>
+        {guestMode && (
+          open ? (
+            <button
+              type="button"
+              onClick={() => signIn('google')}
+              className="btn btn-primary w-full justify-center gap-2"
+              aria-label="Sign in with Google"
+            >
+              <LogIn className="h-4 w-4" aria-hidden />
+              Sign in with Google
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => signIn('google')}
+              className="flex w-full items-center justify-center rounded-xl border px-0 py-2.5 backdrop-blur-sm text-[rgb(var(--accent))]"
+              style={{ borderColor: 'var(--glass-border)', background: 'rgba(var(--accent) / 0.12)' }}
+              aria-label="Sign in with Google"
+              title="Sign in"
+            >
+              <LogIn className="h-4 w-4" aria-hidden />
+            </button>
+          )
         )}
       </div>
 
       {/* ── Collapse Toggle ───────────────────────── */}
       <button
         onClick={() => setOpen(!open)}
-        className="mt-3 flex w-full items-center rounded-xl border px-3 py-2.5 transition-colors backdrop-blur-sm hover:bg-[var(--glass-bg-hover)]"
+        className={cn(
+          'mt-3 flex w-full items-center rounded-xl border transition-colors backdrop-blur-sm hover:bg-[var(--glass-bg-hover)]',
+          open ? 'px-3 py-2.5' : 'justify-center px-0 py-2.5'
+        )}
         style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}
         aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
       >

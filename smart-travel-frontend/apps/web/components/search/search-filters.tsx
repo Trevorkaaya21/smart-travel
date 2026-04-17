@@ -131,12 +131,13 @@ export function SearchFilters({
           <button
             key={sort}
             type="button"
+            aria-pressed={filters.sortBy === sort}
             onClick={() => onChange({ ...filters, sortBy: sort })}
             className={cn(
               'rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 whitespace-nowrap',
               filters.sortBy === sort
                 ? 'bg-[rgb(var(--accent))] text-[rgb(var(--accent-contrast))] shadow-sm'
-                : 'bg-[rgb(var(--surface-muted))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface))] dark:text-[rgb(var(--text))]'
+                : 'bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:bg-[var(--glass-bg-hover)] hover:text-[rgb(var(--text))] border border-[var(--glass-border)]'
             )}
           >
             {sort.charAt(0).toUpperCase() + sort.slice(1)}
@@ -157,12 +158,13 @@ export function SearchFilters({
                   <button
                     key={category}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => toggleCategory(category)}
                     className={cn(
                       'rounded-full border px-4 py-2 text-xs font-medium transition-all duration-200',
                       isActive
                         ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent))]/10 text-[rgb(var(--accent))]'
-                        : 'border-[rgb(var(--border))]/30 bg-[rgb(var(--surface))] text-[rgb(var(--text-secondary))] hover:border-[rgb(var(--border))]/50 dark:text-[rgb(var(--text))]'
+                        : 'border-[var(--glass-border)] bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:border-[rgb(var(--border))]/50 hover:text-[rgb(var(--text))]'
                     )}
                   >
                     {category}
@@ -182,12 +184,13 @@ export function SearchFilters({
                   <button
                     key={rating}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => onChange({ ...filters, rating: isActive ? null : rating })}
                     className={cn(
                       'flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200',
                       isActive
                         ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent))]/10 text-[rgb(var(--accent))]'
-                        : 'border-[rgb(var(--border))]/30 bg-[rgb(var(--surface))] text-[rgb(var(--text-secondary))] hover:border-[rgb(var(--border))]/50 dark:text-[rgb(var(--text))]'
+                        : 'border-[var(--glass-border)] bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:border-[rgb(var(--border))]/50 hover:text-[rgb(var(--text))]'
                     )}
                   >
                     <Star className={cn('h-4 w-4', isActive && 'fill-current')} />
@@ -210,6 +213,7 @@ export function SearchFilters({
                   <button
                     key={range.label}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() =>
                       onChange({
                         ...filters,
@@ -222,7 +226,7 @@ export function SearchFilters({
                       'flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200',
                       isActive
                         ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent))]/10 text-[rgb(var(--accent))]'
-                        : 'border-[rgb(var(--border))]/30 bg-[rgb(var(--surface))] text-[rgb(var(--text-secondary))] hover:border-[rgb(var(--border))]/50 dark:text-[rgb(var(--text))]'
+                        : 'border-[var(--glass-border)] bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:border-[rgb(var(--border))]/50 hover:text-[rgb(var(--text))]'
                     )}
                   >
                     {range.label}
@@ -242,6 +246,7 @@ export function SearchFilters({
                   <button
                     key={option.value}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() =>
                       onChange({
                         ...filters,
@@ -252,7 +257,7 @@ export function SearchFilters({
                       'flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200',
                       isActive
                         ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent))]/10 text-[rgb(var(--accent))]'
-                        : 'border-[rgb(var(--border))]/30 bg-[rgb(var(--surface))] text-[rgb(var(--text-secondary))] hover:border-[rgb(var(--border))]/50 dark:text-[rgb(var(--text))]'
+                        : 'border-[var(--glass-border)] bg-[var(--glass-bg)] text-[rgb(var(--muted))] hover:border-[rgb(var(--border))]/50 hover:text-[rgb(var(--text))]'
                     )}
                   >
                     <MapPin className="h-4 w-4" />
@@ -276,7 +281,7 @@ export function SearchFilters({
                   }
                   className="h-4 w-4 rounded border-[rgb(var(--border))] text-[rgb(var(--accent))]"
                 />
-                <span className="text-sm text-[rgb(var(--text-secondary))] dark:text-[rgb(var(--text))]">Open now</span>
+                <span className="text-sm text-[rgb(var(--text))]">Open now</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -287,7 +292,7 @@ export function SearchFilters({
                   }
                   className="h-4 w-4 rounded border-[rgb(var(--border))] text-[rgb(var(--accent))]"
                 />
-                <span className="text-sm text-[rgb(var(--text-secondary))] dark:text-[rgb(var(--text))]">Has photos</span>
+                <span className="text-sm text-[rgb(var(--text))]">Has photos</span>
               </label>
             </div>
           </div>

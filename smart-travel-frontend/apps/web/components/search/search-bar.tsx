@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useDefaultTrip } from '@/lib/useDefaultTrip'
 import dynamic from 'next/dynamic'
 
-const LeafletMap = dynamic(() => import('@/components/map/leaflet-map').then(m => m.LeafletMap), { ssr: false })
+const SmartMap = dynamic(() => import('@/components/map/smart-map').then(m => m.SmartMap), { ssr: false })
 
 async function aiPlaces(q: string, prefs: any, lat?: number, lng?: number) {
   const r = await fetch(`${API_BASE}/v1/ai/search`, {
@@ -164,7 +164,7 @@ export default function SearchBar() {
 
       {debounced.length > 0 && (
         <div className="glass p-2 rounded-2xl border border-white/15">
-          <LeafletMap markers={markers} />
+          <SmartMap markers={markers} />
         </div>
       )}
 

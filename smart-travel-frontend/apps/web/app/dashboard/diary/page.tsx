@@ -6,7 +6,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Loader2, BookOpenCheck, PenSquare, MapPinned } from 'lucide-react'
+import { Loader2, BookOpenCheck, PenSquare, MapPinned, AlertTriangle } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
 import { cleanTripName } from '@/lib/trip-utils'
 import { Input } from '@/components/ui/input'
@@ -174,7 +174,24 @@ export default function DiaryPage() {
           </div>
         </div>
 
-        {diariesQuery.isLoading ? (
+        {diariesQuery.isError ? (
+          <div className="content-card flex flex-col items-center gap-4 py-12 text-center">
+            <div className="rounded-full p-3" style={{ background: 'rgba(var(--error) / 0.1)' }}>
+              <AlertTriangle className="h-6 w-6 text-[rgb(var(--error))]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--text))]">Something went wrong</h3>
+              <p className="mt-1 text-sm text-[rgb(var(--muted))]">We couldn&apos;t load your diary entries. Please try again.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => diariesQuery.refetch()}
+              className="btn btn-primary"
+            >
+              Try again
+            </button>
+          </div>
+        ) : diariesQuery.isLoading ? (
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="content-subtle h-44 animate-pulse" />

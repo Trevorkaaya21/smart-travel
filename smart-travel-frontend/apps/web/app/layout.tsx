@@ -37,6 +37,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="manifest" href="/manifest.json" />
+        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+          <script
+            src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=weekly&loading=async`}
+            async
+            defer
+          />
+        )}
       </head>
       <body className="min-h-screen antialiased">
         <ErrorBoundary>

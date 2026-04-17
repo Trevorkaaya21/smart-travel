@@ -419,18 +419,19 @@ export default function CreateItineraryPage() {
                     <button
                       key={pref}
                       type="button"
+                      role="switch"
+                      aria-checked={active}
                       onClick={() => togglePreferenceMemo(pref)}
                       className={cn(
-                        'group relative inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200',
+                        'group relative inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition-all duration-200',
                         active
-                          ? 'text-[rgb(var(--accent-contrast))]'
-                          : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:translate-y-[-2px]'
+                          ? 'border-transparent text-[rgb(var(--accent-contrast))]'
+                          : 'border-[rgb(var(--border))]/30 text-[rgb(var(--text))] dark:border-white/15 dark:text-white/90 hover:translate-y-[-2px]'
                       )}
                       style={{
-                        border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
                         background: active
                           ? 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-secondary)))'
-                          : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
+                          : 'var(--glass-bg)',
                         boxShadow: active
                           ? '0 2px 8px rgba(var(--accent) / .25)'
                           : '0 2px 8px rgba(var(--shadow-color) / .05)',
@@ -648,16 +649,15 @@ const ChipSelect = React.memo(function ChipSelect<T extends string>({
               type="button"
               onClick={() => onChange(option)}
               className={cn(
-                'group relative flex items-center justify-between rounded-2xl px-4 py-2.5 text-xs font-semibold transition-all duration-200',
+                'group relative flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-all duration-200',
                 active
-                  ? 'text-[rgb(var(--accent-contrast))]'
-                  : 'text-[color-mix(in_oklab,rgb(var(--text))_75%,rgb(var(--muted))_25%)] hover:translate-y-[-2px]'
+                  ? 'border-transparent text-[rgb(var(--accent-contrast))]'
+                  : 'border-[rgb(var(--border))]/30 text-[rgb(var(--text))] dark:border-white/15 dark:text-white/90 hover:translate-y-[-2px]'
               )}
               style={{
-                border: active ? '1px solid transparent' : '1px solid rgba(var(--border) / .5)',
                 background: active
                   ? 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-secondary)))'
-                  : 'linear-gradient(165deg, rgba(var(--surface) / .85), rgba(var(--surface-muted) / .7))',
+                  : 'var(--glass-bg)',
                 boxShadow: active
                   ? '0 2px 8px rgba(var(--accent) / .25)'
                   : '0 2px 8px rgba(var(--shadow-color) / .05)',

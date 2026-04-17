@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList, Navigation, NotebookPen } from 'lucide-react'
+import { Plus, CalendarDays, Loader2, Share2, Trash2, Sparkles, MapPin, Plane, History, ClipboardList, Navigation, NotebookPen, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
@@ -259,7 +259,24 @@ export default function TripsPage() {
         </div>
 
         {/* Grouped trip sections — Expedia-style */}
-        {tripsQuery.isLoading ? (
+        {tripsQuery.isError ? (
+          <div className="content-card flex flex-col items-center gap-4 py-12 text-center">
+            <div className="rounded-full p-3" style={{ background: 'rgba(var(--error) / 0.1)' }}>
+              <AlertTriangle className="h-6 w-6 text-[rgb(var(--error))]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--text))]">Something went wrong</h3>
+              <p className="mt-1 text-sm text-[rgb(var(--muted))]">We couldn&apos;t load your trips. Please try again.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => tripsQuery.refetch()}
+              className="btn btn-primary"
+            >
+              Try again
+            </button>
+          </div>
+        ) : tripsQuery.isLoading ? (
           <div className="space-y-10">
             <div className="h-8 w-48 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
             <div className="grid gap-4 lg:grid-cols-2">
@@ -394,6 +411,8 @@ function TripSection({
   updateTripDates: (id: string, email: string, start_date: string | null, end_date: string | null) => Promise<unknown>
   isPlanning: boolean
 }) {
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null)
+
   if (trips.length === 0) {
     return (
       <section className="rounded-2xl border p-6" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
@@ -432,12 +451,13 @@ function TripSection({
             key={trip.id}
             trip={trip}
             email={email}
-            onDelete={() => {
-              const name = cleanTripName(trip.name) || 'this trip'
-              if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
-                deleteMut.mutate(trip.id)
-              }
+            isConfirmingDelete={confirmDeleteId === trip.id}
+            onRequestDelete={() => setConfirmDeleteId(trip.id)}
+            onConfirmDelete={() => {
+              deleteMut.mutate(trip.id)
+              setConfirmDeleteId(null)
             }}
+            onCancelDelete={() => setConfirmDeleteId(null)}
             deletePending={deleteMut.isPending}
             onDatesUpdate={onDatesUpdate}
             updateTripDates={updateTripDates}
@@ -463,14 +483,20 @@ function formatTripDateRange(start?: string | null, end?: string | null): string
 function TripCard({
   trip,
   email,
-  onDelete,
+  isConfirmingDelete,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete,
   deletePending,
   onDatesUpdate,
   updateTripDates,
 }: {
   trip: Trip
   email: string
-  onDelete: () => void
+  isConfirmingDelete: boolean
+  onRequestDelete: () => void
+  onConfirmDelete: () => void
+  onCancelDelete: () => void
   deletePending: boolean
   onDatesUpdate: () => void
   updateTripDates: (id: string, email: string, start_date: string | null, end_date: string | null) => Promise<unknown>
@@ -693,13 +719,31 @@ function TripCard({
                   Share
                 </Link>
               )}
-              <button
-                onClick={onDelete}
-                disabled={deletePending}
-                className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-60"
-              >
-                {deletePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              </button>
+              {isConfirmingDelete ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <button
+                    onClick={onConfirmDelete}
+                    disabled={deletePending}
+                    className="rounded-lg bg-red-500/90 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+                  >
+                    {deletePending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Delete'}
+                  </button>
+                  <button
+                    onClick={onCancelDelete}
+                    className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-[rgb(var(--muted))] transition hover:bg-[var(--glass-bg-hover)]"
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={onRequestDelete}
+                  disabled={deletePending}
+                  className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </>
         )}

@@ -3,15 +3,14 @@
 import * as React from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { Wand2, Compass, Heart, MapPin } from 'lucide-react'
+import { Wand2, Compass, Heart, MapPin, Search, ChevronDown, X as XIcon, Users } from 'lucide-react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { useDefaultTrip } from '@/lib/useDefaultTrip'
 import { useGuest } from '@/lib/useGuest'
 import dynamic from 'next/dynamic'
 
-// Use free OpenStreetMap with Leaflet
-const LeafletMap = dynamic(
-  () => import('@/components/map/leaflet-map').then((m) => m.LeafletMap),
+const SmartMap = dynamic(
+  () => import('@/components/map/smart-map').then((m) => m.SmartMap),
   { ssr: false }
 )
 import { Input } from '@/components/ui/input'
@@ -21,6 +20,7 @@ import { api, API_BASE } from '@/lib/api'
 import { TripSelector, useTripSelector } from '@/components/trip/trip-selector'
 import { QuickTripCreator } from '@/components/trip/quick-trip-creator'
 import { SearchFilters, DEFAULT_FILTERS } from '@/components/search/search-filters'
+import { ActiveUsersLayer, type ActiveUser } from '@/components/map/active-users-layer'
 
 type Place = {
   id: string
@@ -68,9 +68,9 @@ function extractErrorMessage(raw: string, status: number) {
   return raw
 }
 
-type AiSearchProps = { addToTripId?: string }
+type AiSearchProps = { addToTripId?: string; overlayMode?: boolean }
 
-export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
+export default function AiSearch({ addToTripId, overlayMode }: AiSearchProps = {}) {
   const { isGuest } = useGuest()
   const { defaultTripId, isLoading: tripLoading, error: tripError } = useDefaultTrip()
   const { data: session } = useSession()
@@ -137,6 +137,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
   const [loadingSuggestions, setLoadingSuggestions] = React.useState(false)
   const suggestionsAbortRef = React.useRef<AbortController | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const searchActiveRef = React.useRef(false)
 
   React.useEffect(() => {
     if (email && typeof window !== 'undefined') {
@@ -192,26 +193,25 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
     }
   }, [])
 
-  // Debounced suggestions fetch
+  // Debounced suggestions fetch — suppressed while a search is running
   React.useEffect(() => {
+    if (searchActiveRef.current) return
+
     const trimmed = q.trim()
-    
-    // Don't fetch suggestions if query is too short or user is selecting from dropdown
+
     if (trimmed.length < 2) {
       setSuggestions([])
       setShowSuggestions(false)
       return
     }
 
-    // Abort previous request
     suggestionsAbortRef.current?.abort()
     const controller = new AbortController()
     suggestionsAbortRef.current = controller
 
-    // Debounce: wait 400ms after user stops typing
     const timeoutId = setTimeout(async () => {
-      if (controller.signal.aborted) return
-      
+      if (controller.signal.aborted || searchActiveRef.current) return
+
       setLoadingSuggestions(true)
       try {
         const loc = locationRef.current
@@ -221,12 +221,12 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
           body: JSON.stringify({ q: trimmed, lat: loc.lat, lng: loc.lng }),
           signal: controller.signal,
         })
-        
-        if (!res.ok || controller.signal.aborted) return
-        
+
+        if (!res.ok || controller.signal.aborted || searchActiveRef.current) return
+
         const data = await res.json()
-        if (controller.signal.aborted) return
-        
+        if (controller.signal.aborted || searchActiveRef.current) return
+
         const suggestionsList = Array.isArray(data.suggestions) ? data.suggestions : []
         setSuggestions(suggestionsList)
         setShowSuggestions(suggestionsList.length > 0)
@@ -252,8 +252,14 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
   async function runSearch(input?: string) {
     const query = (input ?? q).trim()
     if (!query) return
+    searchActiveRef.current = true
     setQ(query)
-    setShowSuggestions(false) // Hide suggestions when searching
+    setShowSuggestions(false)
+    setSuggestions([])
+    setSelectedSuggestionIndex(-1)
+    setLoadingSuggestions(false)
+    suggestionsAbortRef.current?.abort()
+    inputRef.current?.blur()
     setLoading(true)
     setError(null)
     const normalized = query.toLowerCase()
@@ -262,6 +268,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
     if (cached) {
       startTransition(() => setItems(cached))
       setLoading(false)
+      searchActiveRef.current = false
       return
     }
 
@@ -300,6 +307,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
       setError(err instanceof Error ? err.message : 'Could not load places.')
     } finally {
       setLoading(false)
+      searchActiveRef.current = false
     }
   }
 
@@ -342,6 +350,9 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
   }
 
   function handleSuggestionClick(suggestion: string) {
+    setShowSuggestions(false)
+    setSuggestions([])
+    setSelectedSuggestionIndex(-1)
     runSearch(suggestion)
   }
 
@@ -362,40 +373,61 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
   React.useEffect(() => {
     let filtered = [...allItems]
 
-    // Category filter
     if (filters.category.length > 0) {
-      filtered = filtered.filter(place => 
-        filters.category.some(cat => 
+      filtered = filtered.filter(place =>
+        filters.category.some(cat =>
           place.category?.toLowerCase().includes(cat.toLowerCase())
         )
       )
     }
 
-    // Rating filter
     if (filters.rating !== null) {
-      filtered = filtered.filter(place => 
+      filtered = filtered.filter(place =>
         place.rating !== null && place.rating !== undefined && place.rating >= filters.rating!
       )
     }
 
-    // Has photos filter
     if (filters.hasPhotos) {
       filtered = filtered.filter(place => place.photo_url !== null && place.photo_url !== undefined)
     }
 
-    // Sort
+    if (filters.distance !== null && locationRef.current.lat != null && locationRef.current.lng != null) {
+      const userLat = locationRef.current.lat
+      const userLng = locationRef.current.lng
+      const maxMeters = filters.distance
+      filtered = filtered.filter(place => {
+        if (place.lat == null || place.lng == null) return false
+        const R = 6_371_000
+        const dLat = ((place.lat - userLat) * Math.PI) / 180
+        const dLng = ((place.lng - userLng) * Math.PI) / 180
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((userLat * Math.PI) / 180) * Math.cos((place.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+        const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return d <= maxMeters
+      })
+    }
+
     switch (filters.sortBy) {
       case 'rating':
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0))
         break
       case 'distance':
-        // Would need coordinates to implement distance sorting
+        if (locationRef.current.lat != null && locationRef.current.lng != null) {
+          const uLat = locationRef.current.lat
+          const uLng = locationRef.current.lng
+          filtered.sort((a, b) => {
+            const distA = a.lat != null && a.lng != null
+              ? Math.hypot(a.lat - uLat, a.lng - uLng) : Infinity
+            const distB = b.lat != null && b.lng != null
+              ? Math.hypot(b.lat - uLat, b.lng - uLng) : Infinity
+            return distA - distB
+          })
+        }
         break
       case 'popular':
-        // Could sort by rating count or other popularity metric
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0))
         break
-      // 'relevance' is default order from API
     }
 
     setItems(filtered)
@@ -405,13 +437,6 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
     setFilters(DEFAULT_FILTERS)
   }
   
-  const handleApplyFilters = () => {
-    // Force re-apply filters by triggering a search refresh
-    if (allItems.length > 0) {
-      toast.success('Filters applied', { description: `Showing ${items.length} of ${allItems.length} places` })
-    }
-  }
-
   async function addToTrip(place: Place) {
     if (addingPlaceId) return
     if (isGuest || !email) {
@@ -573,23 +598,57 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
   const suggestionsOpen = showSuggestions && suggestions.length > 0
   const DROPDOWN_MAX_H = 260
 
-  return (
-    <div className="space-y-6">
-      {addToTripId && (
-        <div
-          className="flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
-          style={{
-            background: 'rgba(var(--accent) / 0.08)',
-            borderColor: 'rgba(var(--accent) / 0.25)',
-            color: 'rgb(var(--text))',
-          }}
-        >
-          <span className="font-medium">Adding places to:</span>
-          <span className="truncate">{addToTripName ?? '…'}</span>
-        </div>
-      )}
-      
-      {/* Trip Selector Modal */}
+  const [resultsOpen, setResultsOpen] = React.useState(true)
+  const [sheetHeight, setSheetHeight] = React.useState(55)
+  const dragRef = React.useRef<{ startY: number; startH: number } | null>(null)
+  const [activeUsers, setActiveUsers] = React.useState<ActiveUser[]>([])
+  const handleActiveUsersChange = React.useCallback((users: ActiveUser[]) => setActiveUsers(users), [])
+
+  const handleDragStart = React.useCallback((clientY: number) => {
+    dragRef.current = { startY: clientY, startH: sheetHeight }
+  }, [sheetHeight])
+
+  const handleDragMove = React.useCallback((clientY: number) => {
+    if (!dragRef.current) return
+    const delta = dragRef.current.startY - clientY
+    const viewH = window.innerHeight
+    const pctDelta = (delta / viewH) * 100
+    const next = Math.min(85, Math.max(10, dragRef.current.startH + pctDelta))
+    setSheetHeight(next)
+  }, [])
+
+  const handleDragEnd = React.useCallback(() => {
+    if (!dragRef.current) return
+    dragRef.current = null
+    setSheetHeight(prev => {
+      if (prev < 15) { setResultsOpen(false); return 55 }
+      if (prev < 35) return 30
+      if (prev < 65) return 55
+      return 80
+    })
+  }, [])
+
+  React.useEffect(() => {
+    function onMouseMove(e: MouseEvent) { handleDragMove(e.clientY) }
+    function onMouseUp() { handleDragEnd() }
+    function onTouchMove(e: TouchEvent) { handleDragMove(e.touches[0].clientY) }
+    function onTouchEnd() { handleDragEnd() }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [handleDragMove, handleDragEnd])
+
+  const hasResults = allItems.length > 0 || loading || isPending || error
+
+  const modals = (
+    <>
       {!addToTripId && (
         <>
           <TripSelector
@@ -610,7 +669,6 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
             currentTripId={defaultTripId}
             isLoading={tripsLoading}
           />
-          
           <QuickTripCreator
             isOpen={showQuickCreator}
             onClose={() => {
@@ -623,190 +681,363 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
           />
         </>
       )}
-      
-      {/* Search Section */}
-      <div className="content-card">
-        <div className="space-y-4">
-            <div
-              className="relative transition-[padding] duration-200 ease-out"
-              style={{ paddingBottom: suggestionsOpen ? DROPDOWN_MAX_H : 0 }}
-            >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  runSearch()
-                }}
-                className="flex flex-col gap-3 md:flex-row"
-              >
-                <div className="relative flex-1 min-w-0">
-                  <Input
-                    ref={inputRef}
-                    value={q}
-                    onChange={(e) => {
-                      setQ(e.target.value)
-                      setShowSuggestions(true)
-                    }}
-                    onFocus={() => {
-                      if (suggestions.length > 0) setShowSuggestions(true)
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setShowSuggestions(false), 200)
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder='Search for anything: "clubs in Miami", "sushi tokyo", "beach resorts bali"'
-                    className="min-h-[56px] flex-1 rounded-2xl text-base input-surface pr-12 w-full"
-                    autoComplete="off"
-                  />
-                  {loadingSuggestions && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
-                    </div>
-                  )}
+    </>
+  )
 
-                  {/* Autocomplete Suggestions - contained height, scrollable, no overlap */}
-                  {suggestionsOpen && (
-                    <div
-                      className="absolute left-0 right-0 z-50 mt-2 w-full rounded-2xl border backdrop-blur-xl shadow-xl"
-                      style={{
-                        borderColor: 'rgba(var(--border) / 0.5)',
-                        background: 'var(--glass-bg)',
-                        maxHeight: DROPDOWN_MAX_H,
-                        overflowY: 'auto',
-                      }}
-                    >
-                      {suggestions.map((suggestion, index) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                          className={cn(
-                            'w-full px-4 py-3 text-left text-sm transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl',
-                            index === selectedSuggestionIndex
-                              ? 'bg-[rgb(var(--accent))]/20 text-[rgb(var(--accent))]'
-                              : 'text-[rgb(var(--text))] hover:bg-[rgb(var(--accent))]/10'
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Wand2 className="h-4 w-4 shrink-0 opacity-60" />
-                            <span className="truncate">{suggestion}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading || isPending}
-                  className="btn btn-primary min-h-[56px] rounded-2xl px-8 text-base font-semibold transition-all duration-200 disabled:opacity-60 shrink-0"
-                >
-                  {loading || isPending ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
-                      Searching…
-                    </span>
-                  ) : (
-                    'Search'
-                  )}
-                </Button>
-              </form>
+  const searchForm = (
+    <div className="relative">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          runSearch()
+        }}
+        className="flex gap-2"
+      >
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[rgb(var(--muted))] pointer-events-none z-10" />
+          <Input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value)
+              setShowSuggestions(true)
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0 && !allItems.length && !loading) setShowSuggestions(true)
+            }}
+            onBlur={() => {
+              setTimeout(() => setShowSuggestions(false), 200)
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={overlayMode ? 'Where do you want to go?' : 'Search for anything: "clubs in Miami", "sushi tokyo"...'}
+            className={cn(
+              'rounded-2xl text-base pr-12 w-full',
+              overlayMode
+                ? 'min-h-[52px] pl-12 border-0 bg-transparent text-[rgb(var(--text))] placeholder:text-[rgb(var(--muted))]'
+                : 'min-h-[56px] input-surface'
+            )}
+            autoComplete="off"
+          />
+          {loadingSuggestions && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
             </div>
-
-          {/* Quick prompt chips - shown when no search has been performed */}
-          {!allItems.length && !loading && !isPending && !q.trim() && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {QUICK_PROMPTS.map((prompt) => (
+          )}
+          {!loadingSuggestions && q.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ('')
+                setItems([])
+                setAllItems([])
+                setSuggestions([])
+                setShowSuggestions(false)
+                setError(null)
+                inputRef.current?.focus()
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[rgb(var(--muted))] hover:text-[rgb(var(--text))] transition-colors"
+              aria-label="Clear search"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
+          )}
+          {suggestionsOpen && (
+            <div
+              className={cn(
+                'absolute left-0 right-0 z-50 w-full rounded-2xl border shadow-xl',
+                overlayMode ? 'mt-1 backdrop-blur-2xl' : 'mt-2 backdrop-blur-xl'
+              )}
+              style={{
+                borderColor: overlayMode ? 'rgba(255,255,255,0.15)' : 'rgba(var(--border) / 0.5)',
+                background: overlayMode ? 'rgba(0,0,0,0.75)' : 'var(--glass-bg)',
+                maxHeight: overlayMode ? 200 : DROPDOWN_MAX_H,
+                overflowY: 'auto',
+              }}
+            >
+              {suggestions.map((suggestion, index) => (
                 <button
-                  key={prompt}
+                  key={suggestion}
                   type="button"
-                  onClick={() => runSearch(prompt)}
-                  className="prompt-chip rounded-full border px-3.5 py-2 text-xs font-medium transition-all duration-200 hover:translate-y-[-1px]"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                  className={cn(
+                    'w-full px-4 py-2.5 text-left text-sm transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl',
+                    index === selectedSuggestionIndex
+                      ? overlayMode
+                        ? 'bg-white/15 text-[rgb(var(--accent))]'
+                        : 'bg-[rgb(var(--accent))]/20 text-[rgb(var(--accent))]'
+                      : overlayMode
+                        ? 'text-white/90 hover:bg-white/10'
+                        : 'text-[rgb(var(--text))] hover:bg-[rgb(var(--accent))]/10'
+                  )}
                 >
-                  {prompt}
+                  <div className="flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    <span className="truncate">{suggestion}</span>
+                  </div>
                 </button>
               ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Results Section - only shown after a search */}
-      {(allItems.length > 0 || loading || isPending || error) && (
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" role="region" aria-label="Search results">
-        <section className="space-y-4">
-          {allItems.length > 0 && (
-            <SearchFilters
-              filters={filters}
-              onChange={setFilters}
-              onReset={handleResetFilters}
-              onApply={handleApplyFilters}
-              resultsCount={items.length}
-            />
+        <Button
+          type="submit"
+          disabled={loading || isPending}
+          className={cn(
+            'btn btn-primary rounded-2xl font-semibold transition-all duration-200 disabled:opacity-60 shrink-0',
+            overlayMode ? 'min-h-[52px] px-6 text-sm' : 'min-h-[56px] px-8 text-base'
           )}
-          
-          <header className="flex items-center justify-between pt-1">
-            <div>
-              <h3 className="text-xl font-bold text-[rgb(var(--text))] mb-1">Results</h3>
-              <p className="text-xs uppercase tracking-[0.3em] text-[rgb(var(--muted))]">Explore and add to your trip</p>
+        >
+          {loading || isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
+              <span className="hidden sm:inline">Searching…</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <Search className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Search</span>
+            </span>
+          )}
+        </Button>
+      </form>
+    </div>
+  )
+
+  const quickPrompts = !allItems.length && !loading && !isPending && !q.trim() ? (
+    <div className={cn('flex flex-wrap gap-2', overlayMode ? 'pt-2' : 'pt-1')}>
+      {QUICK_PROMPTS.map((prompt) => (
+        <button
+          key={prompt}
+          type="button"
+          onClick={() => runSearch(prompt)}
+          className={cn(
+            'rounded-full border px-3.5 py-2 text-xs font-medium transition-all duration-200 hover:translate-y-[-1px]',
+            overlayMode
+              ? 'border-white/20 bg-black/40 text-white/90 backdrop-blur-md hover:bg-black/50 hover:text-white'
+              : 'prompt-chip'
+          )}
+        >
+          {prompt}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  const resultsContent = (
+    <section className="space-y-4">
+      {allItems.length > 0 && (
+        <SearchFilters
+          filters={filters}
+          onChange={setFilters}
+          onReset={handleResetFilters}
+          resultsCount={items.length}
+        />
+      )}
+
+      <header className="flex items-center justify-between pt-1">
+        <div>
+          <h3 className="text-xl font-bold text-[rgb(var(--text))] mb-1">Results</h3>
+          <p className="text-xs uppercase tracking-[0.3em] text-[rgb(var(--muted))]">Explore and add to your trip</p>
+        </div>
+        {items.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+            <Compass className="h-4 w-4 text-[rgb(var(--accent))]" />
+            {items.length} places
+          </div>
+        )}
+      </header>
+
+      {error && (
+        <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'rgba(var(--error) / 0.4)', background: 'rgba(var(--error) / 0.1)', color: 'rgb(var(--error))' }}>
+          {error}
+        </div>
+      )}
+
+      {!items.length && !loading && !isPending ? (
+        <div className="rounded-2xl border p-8 text-center" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
+          <Compass className="mx-auto h-8 w-8 text-[rgb(var(--accent))] mb-3" />
+          <p className="text-sm text-[rgb(var(--muted))]">No places found. Try a different search.</p>
+        </div>
+      ) : (
+        <div className={cn('grid gap-4', overlayMode ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-2')}>
+          {items.map((p) => (
+            <ResultCard
+              key={p.id}
+              place={p}
+              added={!!addedTripIds[p.id]}
+              favorite={!!favoriteIds[p.id]}
+              adding={addingPlaceId === p.id}
+              saving={favoritePlaceId === p.id}
+              onAdd={() => addToTrip(p)}
+              onFavorite={() => toggleFavorite(p)}
+              disableActions={isGuest || !email}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+
+  /* ─── Overlay mode: full-screen map with floating UI ─── */
+  if (overlayMode) {
+    return (
+      <div className="relative h-full w-full" style={{ minHeight: 'calc(100dvh - 6rem)' }}>
+        {/* Background satellite map */}
+        <div className="absolute inset-0 z-0">
+          <SmartMap fullScreen markers={markers} activeUsers={activeUsers} />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/20 dark:from-black/50 dark:to-black/30" />
+        </div>
+
+        {modals}
+
+        {/* Floating search bar at top */}
+        <div className="absolute top-4 left-4 right-16 z-20 animate-fade-in">
+          {addToTripId && (
+            <div
+              className="mb-3 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm backdrop-blur-xl"
+              style={{
+                background: 'rgba(var(--accent) / 0.15)',
+                borderColor: 'rgba(var(--accent) / 0.3)',
+                color: 'white',
+              }}
+            >
+              <MapPin className="h-4 w-4" />
+              <span className="font-medium">Adding to:</span>
+              <span className="truncate">{addToTripName ?? '…'}</span>
             </div>
-            {items.length > 0 && (
-              <div className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
-                <Compass className="h-4 w-4 text-[rgb(var(--accent))]" />
-                {items.length} places
+          )}
+
+          <div
+            className="rounded-2xl border shadow-2xl backdrop-blur-xl overflow-visible"
+            style={{
+              background: 'var(--glass-bg)',
+              borderColor: 'var(--glass-border)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)',
+            }}
+          >
+            <div className="p-3">
+              {searchForm}
+            </div>
+          </div>
+
+          {quickPrompts && (
+            <div className="mt-3">
+              {quickPrompts}
+            </div>
+          )}
+        </div>
+
+        {/* Draggable bottom sheet with results */}
+        {hasResults && (
+          <div
+            className="absolute left-0 right-0 bottom-0 z-20 flex flex-col"
+            style={{
+              height: resultsOpen ? `${sheetHeight}vh` : '48px',
+              transition: dragRef.current ? 'none' : 'height 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
+            }}
+          >
+            {/* Drag handle */}
+            <div
+              className="flex-shrink-0 cursor-row-resize select-none rounded-t-2xl backdrop-blur-xl"
+              style={{
+                background: 'rgba(var(--bg) / 0.92)',
+                borderTop: '1px solid var(--glass-border)',
+                borderLeft: '1px solid var(--glass-border)',
+                borderRight: '1px solid var(--glass-border)',
+              }}
+              onMouseDown={(e) => { e.preventDefault(); handleDragStart(e.clientY) }}
+              onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+              onClick={() => {
+                if (!dragRef.current) setResultsOpen(!resultsOpen)
+              }}
+            >
+              <div className="flex flex-col items-center py-2.5">
+                <div className="mb-2 h-1 w-10 rounded-full bg-[rgb(var(--muted))]/40" />
+                <div className="flex items-center gap-2 text-xs font-semibold text-[rgb(var(--muted))]">
+                  <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', resultsOpen && 'rotate-180')} />
+                  {items.length > 0 ? `${items.length} places found` : loading ? 'Searching…' : 'Results'}
+                  {resultsOpen && <span className="text-[10px] font-normal opacity-60">drag to resize</span>}
+                </div>
+              </div>
+            </div>
+
+            {resultsOpen && (
+              <div
+                className="flex-1 overflow-y-auto px-5 pb-6 pt-2"
+                style={{
+                  background: 'rgba(var(--bg) / 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  borderLeft: '1px solid var(--glass-border)',
+                  borderRight: '1px solid var(--glass-border)',
+                }}
+              >
+                {resultsContent}
               </div>
             )}
-          </header>
-
-          {error && (
-            <div className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'rgba(var(--error) / 0.4)', background: 'rgba(var(--error) / 0.1)', color: 'rgb(var(--error))' }}>
-              {error}
-            </div>
-          )}
-
-          {!items.length && !loading && !isPending ? (
-            <div className="content-card p-12 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ borderWidth: 1, borderColor: 'rgba(var(--accent) / 0.25)', background: 'rgba(var(--accent) / 0.1)' }}>
-                <Compass className="h-8 w-8 text-[rgb(var(--accent))]" />
-              </div>
-              <p className="text-sm text-[rgb(var(--muted))]">
-                No places found. Try a different search.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
-              {items.map((p) => (
-                <ResultCard
-                  key={p.id}
-                  place={p}
-                  added={!!addedTripIds[p.id]}
-                  favorite={!!favoriteIds[p.id]}
-                  adding={addingPlaceId === p.id}
-                  saving={favoritePlaceId === p.id}
-                  onAdd={() => addToTrip(p)}
-                  onFavorite={() => toggleFavorite(p)}
-                  disableActions={isGuest || !email}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Map Section - Only show when there are results */}
-        {markers.length > 0 && (
-          <aside className="content-card hidden p-4 xl:flex xl:flex-col">
-            <div className="flex items-center gap-3 px-1 pb-3 text-[rgb(var(--muted))]">
-              <MapPin className="h-5 w-5 text-[rgb(var(--accent))]" />
-              <div className="text-sm font-medium">Map View</div>
-            </div>
-            <DiscoverMapWithFallback markers={markers} />
-            <p className="mt-4 text-xs text-[rgb(var(--muted))]">
-              {markers.length} {markers.length === 1 ? 'location' : 'locations'} shown on map
-            </p>
-          </aside>
+          </div>
         )}
+
+        {/* Active users layer with distance filter */}
+        <div
+          className="absolute left-4 z-10 transition-all duration-300"
+          style={{ bottom: hasResults && resultsOpen ? `calc(${sheetHeight}vh + 8px)` : '16px' }}
+        >
+          <ActiveUsersLayer onUsersChange={handleActiveUsersChange} />
+        </div>
       </div>
+    )
+  }
+
+  /* ─── Standard card-based layout (non-overlay) ─── */
+  return (
+    <div className="space-y-6">
+      {addToTripId && (
+        <div
+          className="flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
+          style={{
+            background: 'rgba(var(--accent) / 0.08)',
+            borderColor: 'rgba(var(--accent) / 0.25)',
+            color: 'rgb(var(--text))',
+          }}
+        >
+          <span className="font-medium">Adding places to:</span>
+          <span className="truncate">{addToTripName ?? '…'}</span>
+        </div>
+      )}
+
+      {modals}
+
+      <div className="content-card">
+        <div className="space-y-4">
+          <div
+            className="relative transition-[padding] duration-200 ease-out"
+            style={{ paddingBottom: suggestionsOpen ? DROPDOWN_MAX_H : 0 }}
+          >
+            {searchForm}
+          </div>
+          {quickPrompts}
+        </div>
+      </div>
+
+      {hasResults && (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" role="region" aria-label="Search results">
+          {resultsContent}
+
+          {markers.length > 0 && (
+            <aside className="content-card hidden p-4 xl:flex xl:flex-col">
+              <div className="flex items-center gap-3 px-1 pb-3 text-[rgb(var(--muted))]">
+                <MapPin className="h-5 w-5 text-[rgb(var(--accent))]" />
+                <div className="text-sm font-medium">Map View</div>
+              </div>
+              <DiscoverMapWithFallback markers={markers} />
+              <p className="mt-4 text-xs text-[rgb(var(--muted))]">
+                {markers.length} {markers.length === 1 ? 'location' : 'locations'} shown on map
+              </p>
+            </aside>
+          )}
+        </div>
       )}
     </div>
   )
@@ -815,8 +1046,7 @@ export default function AiSearch({ addToTripId }: AiSearchProps = {}) {
 type MapMarker = { id: string; name: string; lat?: number | null; lng?: number | null }
 
 function DiscoverMapWithFallback({ markers }: { markers: MapMarker[] }) {
-  // Use free OpenStreetMap with Leaflet by default
-  return <LeafletMap markers={markers} />
+  return <SmartMap markers={markers} />
 }
 
 function ResultCard({
@@ -840,9 +1070,7 @@ function ResultCard({
 }) {
   const rawImage = (place as any)?.photo ?? place.photo_url
   const photoCredit = (place as any)?.photo_credit || null
-  const image =
-    stringImageUrl(rawImage) ??
-    `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80`
+  const image = stringImageUrl(rawImage) ?? `https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=900&h=600&fit=crop`
 
   return (
     <div className="group overflow-hidden rounded-2xl border backdrop-blur-sm transition-all duration-200 hover:translate-y-[-2px]" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
@@ -853,8 +1081,11 @@ function ResultCard({
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
           onError={(e) => {
-            // Fallback if image fails to load
-            e.currentTarget.src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80'
+            const target = e.currentTarget
+            if (!target.dataset.retried) {
+              target.dataset.retried = '1'
+              target.src = `https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=900&h=600&fit=crop`
+            }
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

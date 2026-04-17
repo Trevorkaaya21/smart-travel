@@ -9,7 +9,7 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Home, MapPin, Plus, Minus, Trash2, GripVertical, Pencil, Check, X, Compass, ExternalLink, NotebookPen } from 'lucide-react'
+import { Home, MapPin, Plus, Minus, Trash2, GripVertical, Pencil, Check, X, Compass, ExternalLink, NotebookPen, CalendarDays, Star, MapPinned, AlertTriangle } from 'lucide-react'
 import { API_BASE } from '@/lib/api'
 import { cleanTripName, computeTripDays } from '@/lib/trip-utils'
 import { ShareButton } from '@/components/trip/share-button'
@@ -119,6 +119,16 @@ function groupByDay(items: TripItem[]) {
 
 /* ---------- UI subcomponents ---------- */
 
+const DAY_ACCENT_COLORS = [
+  { border: 'rgb(6, 182, 212)', bg: 'rgba(6, 182, 212, 0.08)' },
+  { border: 'rgb(168, 85, 247)', bg: 'rgba(168, 85, 247, 0.08)' },
+  { border: 'rgb(249, 115, 22)', bg: 'rgba(249, 115, 22, 0.08)' },
+  { border: 'rgb(34, 197, 94)', bg: 'rgba(34, 197, 94, 0.08)' },
+  { border: 'rgb(236, 72, 153)', bg: 'rgba(236, 72, 153, 0.08)' },
+  { border: 'rgb(59, 130, 246)', bg: 'rgba(59, 130, 246, 0.08)' },
+  { border: 'rgb(245, 158, 11)', bg: 'rgba(245, 158, 11, 0.08)' },
+]
+
 function DayColumn({
   day,
   itemCount,
@@ -133,32 +143,82 @@ function DayColumn({
   children: React.ReactNode
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` })
+  const accent = DAY_ACCENT_COLORS[(day - 1) % DAY_ACCENT_COLORS.length]
+
   return (
     <div
       ref={setNodeRef}
-      className={`timeline-column transition-all ${isOver ? 'ring-2 ring-[rgb(var(--accent))]/40' : ''}`}
+      className="rounded-2xl border transition-all duration-200 overflow-hidden"
+      style={{
+        borderColor: isOver ? accent.border : 'var(--glass-border)',
+        background: 'var(--glass-bg)',
+        boxShadow: isOver
+          ? `0 0 0 2px ${accent.border}40, var(--shadow-md)`
+          : 'var(--shadow-sm)',
+        backdropFilter: 'blur(12px)',
+      }}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[rgb(var(--text))]">Day {day}</span>
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(var(--accent) / 0.12)', color: 'rgb(var(--accent))' }}>
-            {itemCount} {itemCount === 1 ? 'place' : 'places'}
-          </span>
+      {/* Day header with accent gradient */}
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{
+          background: accent.bg,
+          borderBottom: `1px solid var(--glass-border)`,
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-white"
+            style={{ background: accent.border }}
+          >
+            {day}
+          </div>
+          <div>
+            <div className="text-sm font-bold text-[rgb(var(--text))]">Day {day}</div>
+            <div className="text-[10px] text-[rgb(var(--muted))]">
+              {itemCount} {itemCount === 1 ? 'place' : 'places'}
+            </div>
+          </div>
         </div>
         {canRemove && (
           <button
             onClick={() => onRemoveDay(day)}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-[rgb(var(--muted))] transition hover:bg-red-500/10 hover:text-red-400"
+            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-[rgb(var(--muted))] transition hover:bg-red-500/10 hover:text-red-400"
             title={itemCount > 0 ? `Remove Day ${day} (moves ${itemCount} place(s) to Day 1)` : `Remove Day ${day}`}
           >
             <Minus className="h-3 w-3" />
-            Remove
           </button>
         )}
       </div>
-      {children}
+
+      {/* Items */}
+      <div className="space-y-2 p-3">
+        {children}
+      </div>
     </div>
   )
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  restaurant: '#f97316',
+  hotel: '#3b82f6',
+  attraction: '#a855f7',
+  bar: '#ec4899',
+  nightlife: '#ec4899',
+  museum: '#8b5cf6',
+  park: '#22c55e',
+  beach: '#06b6d4',
+  cafe: '#f59e0b',
+  shopping: '#e11d48',
+}
+
+function getCategoryColor(category?: string | null): string {
+  if (!category) return 'rgb(var(--accent))'
+  const key = category.toLowerCase()
+  for (const [k, v] of Object.entries(CATEGORY_COLORS)) {
+    if (key.includes(k)) return v
+  }
+  return 'rgb(var(--accent))'
 }
 
 function ItemRow({
@@ -178,74 +238,110 @@ function ItemRow({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.6 : 1,
-    scale: isDragging ? '1.02' : '1',
+    opacity: isDragging ? 0.5 : 1,
+    scale: isDragging ? '1.03' : '1',
   }
+  const catColor = getCategoryColor(item.category)
 
   return (
-    <div ref={setNodeRef} style={style} className="timeline-item group">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab rounded-md p-1.5 text-[rgb(var(--muted))] transition hover:bg-[var(--glass-bg-hover)] hover:text-[rgb(var(--text))] active:cursor-grabbing"
-          title="Drag to reorder"
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-[rgb(var(--text))]">{item.name ?? item.place_id}</div>
-          {item.category && (
-            <div className="text-xs text-[rgb(var(--muted))]">
-              {item.category}{item.rating ? ` · ★ ${item.rating}` : ''}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <select
-          value={item.day ?? 1}
-          onChange={(e) => {
-            const nextDay = Number(e.currentTarget.value)
-            ensureDayVisible(nextDay)
-            onEdit(item.id, { day: nextDay })
-          }}
-          className="timeline-select text-xs"
-          title="Move to day"
-        >
-          {Array.from({ length: Math.max(maxDay + 1, item.day ?? 1) }, (_, i) => i + 1).map((d) => (
-            <option key={d} value={d}>Day {d}</option>
-          ))}
-        </select>
-        <input
-          defaultValue={item.note ?? ''}
-          placeholder="Add note…"
-          onBlur={(e) => {
-            const v = e.currentTarget.value
-            if (v !== (item.note ?? '')) onEdit(item.id, { note: v })
-          }}
-          className="timeline-input w-28 text-xs lg:w-36"
-        />
-        {item.lat != null && item.lng != null && (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-medium transition hover:bg-[var(--glass-bg-hover)]"
-            style={{ borderColor: 'var(--glass-border)' }}
-            title="Open in Google Maps"
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group flex gap-3 rounded-xl border p-3 transition-all duration-200 hover:shadow-[var(--shadow-md)]"
+      role="listitem"
+      aria-label={item.name ?? item.place_id}
+      {...{ style: { ...style, borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' } }}
+    >
+      {/* Category color strip */}
+      <div
+        className="w-1 shrink-0 rounded-full"
+        style={{ background: catColor }}
+      />
+
+      {/* Main content */}
+      <div className="min-w-0 flex-1 space-y-2">
+        {/* Top: drag handle + name + actions */}
+        <div className="flex items-start gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="mt-0.5 cursor-grab rounded-md p-1 text-[rgb(var(--muted))] opacity-0 transition group-hover:opacity-100 hover:bg-[var(--glass-bg-hover)] hover:text-[rgb(var(--text))] active:cursor-grabbing"
+            title="Drag to reorder"
           >
-            <ExternalLink className="h-3 w-3" />
-            Maps
-          </a>
-        )}
-        <button
-          onClick={() => onDelete(item.id)}
-          className="rounded-lg p-1.5 text-[rgb(var(--muted))] transition hover:bg-red-500/10 hover:text-red-400"
-          title="Remove place"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-semibold text-[rgb(var(--text))]">
+                {item.name ?? item.place_id}
+              </span>
+            </div>
+            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[rgb(var(--muted))]">
+              {item.category && (
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: catColor }} />
+                  {item.category}
+                </span>
+              )}
+              {item.rating != null && item.rating > 0 && (
+                <span className="inline-flex items-center gap-0.5">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  {item.rating.toFixed(1)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+            {item.lat != null && item.lng != null && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg p-1.5 text-[rgb(var(--muted))] transition hover:bg-[rgb(var(--accent))]/10 hover:text-[rgb(var(--accent))]"
+                title="Open in Google Maps"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            <button
+              onClick={() => onDelete(item.id)}
+              className="rounded-lg p-1.5 text-[rgb(var(--muted))] transition hover:bg-red-500/10 hover:text-red-400"
+              title="Remove place"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom: note + day selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={item.day ?? 1}
+            onChange={(e) => {
+              const nextDay = Number(e.currentTarget.value)
+              ensureDayVisible(nextDay)
+              onEdit(item.id, { day: nextDay })
+            }}
+            className="timeline-select rounded-lg text-[11px]"
+            title="Move to day"
+          >
+            {Array.from({ length: Math.max(maxDay + 1, item.day ?? 1) }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>Day {d}</option>
+            ))}
+          </select>
+          <input
+            defaultValue={item.note ?? ''}
+            placeholder="Add a note…"
+            onBlur={(e) => {
+              const v = e.currentTarget.value
+              if (v !== (item.note ?? '')) onEdit(item.id, { note: v })
+            }}
+            className="timeline-input flex-1 min-w-0 rounded-lg text-[11px]"
+          />
+        </div>
       </div>
     </div>
   )
@@ -455,6 +551,44 @@ export default function TripPage() {
     reorderMut.mutate({ day: destDay, order: nextIds })
   }
 
+  if (tripQ.isLoading || itemsQ.isLoading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8 space-y-6 animate-pulse">
+        <div className="h-8 w-64 rounded bg-slate-200 dark:bg-white/10" />
+        <div className="h-4 w-32 rounded bg-slate-200 dark:bg-white/10" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border p-6 space-y-3" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
+              <div className="h-5 w-3/5 rounded bg-slate-200 dark:bg-white/10" />
+              <div className="h-4 w-2/5 rounded bg-slate-200 dark:bg-white/10" />
+              <div className="h-4 w-4/5 rounded bg-slate-200 dark:bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (tripQ.isError || itemsQ.isError) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="content-card flex flex-col items-center gap-4 py-12 text-center">
+          <div className="rounded-full p-3" style={{ background: 'rgba(var(--error) / 0.1)' }}>
+            <AlertTriangle className="h-6 w-6 text-[rgb(var(--error))]" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-[rgb(var(--text))]">Couldn&apos;t load this trip</h3>
+            <p className="mt-1 text-sm text-[rgb(var(--muted))]">Check your connection and try again.</p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => { tripQ.refetch(); itemsQ.refetch() }} className="btn btn-primary">Try again</button>
+            <Link href="/dashboard/trips" className="btn">Back to trips</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const tripName = cleanTripName(tripQ.data?.trip?.name ?? 'Trip')
 
   return (
@@ -578,19 +712,33 @@ export default function TripPage() {
 
       {/* Empty state */}
       {items.length === 0 && (
-        <div className="content-card flex flex-col items-center gap-4 py-12 text-center">
-          <div className="rounded-2xl p-4" style={{ background: 'rgba(var(--accent) / 0.1)' }}>
-            <MapPin className="h-10 w-10 text-[rgb(var(--accent))]" />
+        <div
+          className="flex flex-col items-center gap-5 rounded-2xl border-2 border-dashed py-16 text-center"
+          style={{ borderColor: 'rgba(var(--accent) / 0.3)', background: 'rgba(var(--accent) / 0.04)' }}
+        >
+          <div className="relative">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-2xl"
+              style={{ background: 'rgba(var(--accent) / 0.15)' }}
+            >
+              <MapPinned className="h-8 w-8 text-[rgb(var(--accent))]" />
+            </div>
+            <div
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full text-white"
+              style={{ background: 'rgb(var(--accent))' }}
+            >
+              <Plus className="h-4 w-4" />
+            </div>
           </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-[rgb(var(--text))]">No places yet</h3>
-            <p className="text-sm text-[rgb(var(--muted))]">
-              Search for destinations and add them to this trip.
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-bold text-[rgb(var(--text))]">Start building your itinerary</h3>
+            <p className="mx-auto max-w-sm text-sm text-[rgb(var(--muted))]">
+              Search for restaurants, attractions, and hidden gems to add to your trip.
             </p>
           </div>
           <Link
             href={`/dashboard?addToTrip=${encodeURIComponent(tripId)}`}
-            className="btn btn-primary rounded-xl px-5 py-2.5 text-sm font-semibold"
+            className="btn btn-primary rounded-2xl px-6 py-3 text-sm font-semibold"
           >
             <Compass className="h-4 w-4" />
             Discover places
@@ -599,11 +747,25 @@ export default function TripPage() {
       )}
 
       {/* Itinerary board header */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-[rgb(var(--text))]">Itinerary board</h2>
+      <div
+        className="flex items-center justify-between gap-3 rounded-2xl border px-5 py-4"
+        style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)', boxShadow: 'var(--shadow-sm)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ background: 'rgba(var(--accent) / 0.12)' }}
+          >
+            <CalendarDays className="h-5 w-5 text-[rgb(var(--accent))]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[rgb(var(--text))]">Itinerary board</h2>
+            <p className="text-[11px] text-[rgb(var(--muted))]">Drag and drop to organize your days</p>
+          </div>
+        </div>
         <button
           onClick={handleAddDay}
-          className="btn btn-ghost inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
+          className="btn btn-primary rounded-xl px-4 py-2.5 text-xs font-semibold"
         >
           <Plus className="h-3.5 w-3.5" />
           Add day
@@ -627,8 +789,9 @@ export default function TripPage() {
               >
                 <SortableContext items={ids} strategy={verticalListSortingStrategy}>
                   {list.length === 0 && (
-                    <div className="timeline-dropzone">
-                      Drop places here
+                    <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center" style={{ borderColor: 'rgba(var(--accent) / 0.2)', background: 'rgba(var(--accent) / 0.03)' }}>
+                      <MapPin className="h-5 w-5 text-[rgb(var(--accent))] opacity-50" />
+                      <p className="text-xs text-[rgb(var(--muted))]">Drop places here</p>
                     </div>
                   )}
                   {list.map((it) => (

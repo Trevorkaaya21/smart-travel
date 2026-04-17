@@ -111,6 +111,7 @@ export default function TravelChatPage() {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [emailDirect, setEmailDirect] = React.useState('')
   const [messageDraft, setMessageDraft] = React.useState('')
+  const [profileCache, setProfileCache] = React.useState<Record<string, { display_name?: string; travel_name?: string }>>({})
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
   const authenticated = status === 'authenticated' && !!email
@@ -164,6 +165,27 @@ export default function TravelChatPage() {
     onError: () => toast.error('Could not send message'),
   })
 
+  const conversationsList = conversationsQuery.data ?? []
+
+  React.useEffect(() => {
+    if (!conversationsList.length) return
+    const uncached = conversationsList
+      .map(c => c.other_email)
+      .filter(e => e && !profileCache[e])
+    if (!uncached.length) return
+
+    uncached.forEach(async (otherEmail) => {
+      try {
+        const res = await fetch(`${API_BASE}/v1/profile?email=${encodeURIComponent(otherEmail)}`, { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.profile) {
+          setProfileCache(prev => ({ ...prev, [otherEmail]: data.profile }))
+        }
+      } catch {}
+    })
+  }, [conversationsList])
+
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messagesQuery.data])
@@ -187,7 +209,7 @@ export default function TravelChatPage() {
     )
   }
 
-  const conversations = conversationsQuery.data ?? []
+  const conversations = conversationsList
   const messages = messagesQuery.data ?? []
   const selectedConv = conversations.find(c => c.id === selectedId)
   const otherEmail = selectedConv?.other_email ?? ''
@@ -243,25 +265,33 @@ export default function TravelChatPage() {
             </p>
           ) : (
             <ul className="flex-1 overflow-y-auto p-2 space-y-1">
-              {conversations.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(c.id)
-                      setShowNewChat(false)
-                    }}
-                    className={cn(
-                      'w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition backdrop-blur-sm',
-                      selectedId === c.id
-                        ? 'bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))] ring-1 ring-[rgb(var(--accent))]/30'
-                        : 'hover:bg-[rgb(var(--glass-bg-hover))] text-[rgb(var(--text))]'
-                    )}
-                  >
-                    <span className="truncate block">{c.other_email}</span>
-                  </button>
-                </li>
-              ))}
+              {conversations.map((c) => {
+                const profile = profileCache[c.other_email]
+                const displayName = profile?.display_name || profile?.travel_name || c.other_email
+                const hasName = displayName !== c.other_email
+                return (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(c.id)
+                        setShowNewChat(false)
+                      }}
+                      className={cn(
+                        'w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition backdrop-blur-sm',
+                        selectedId === c.id
+                          ? 'bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))] ring-1 ring-[rgb(var(--accent))]/30'
+                          : 'hover:bg-[rgb(var(--glass-bg-hover))] text-[rgb(var(--text))]'
+                      )}
+                    >
+                      <span className="truncate block">{displayName}</span>
+                      {hasName && (
+                        <span className="truncate block text-[11px] font-normal text-[rgb(var(--muted))]">{c.other_email}</span>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </aside>
@@ -415,7 +445,14 @@ export default function TravelChatPage() {
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--accent))]/15 text-[rgb(var(--accent))]">
                   <UserRound className="h-4 w-4" />
                 </div>
-                <span className="font-semibold text-[rgb(var(--text))] truncate">{otherEmail}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-[rgb(var(--text))] truncate block">
+                    {profileCache[otherEmail]?.display_name || profileCache[otherEmail]?.travel_name || otherEmail}
+                  </span>
+                  {(profileCache[otherEmail]?.display_name || profileCache[otherEmail]?.travel_name) && (
+                    <span className="text-[11px] text-[rgb(var(--muted))] truncate block">{otherEmail}</span>
+                  )}
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messagesQuery.isLoading ? (

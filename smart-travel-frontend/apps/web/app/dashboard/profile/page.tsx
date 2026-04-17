@@ -10,7 +10,7 @@ import { stringImageUrl } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { UserRound, Loader2, Trash2, MapPinned, Heart, BarChart3, Map, Camera } from 'lucide-react'
+import { UserRound, Loader2, Trash2, MapPinned, Heart, BarChart3, Map, Camera, Pencil, X, MapPin } from 'lucide-react'
 
 type Profile = {
   display_name?: string | null
@@ -82,6 +82,8 @@ export default function ProfilePage() {
   const [bio, setBio] = React.useState('')
   const [travelName, setTravelName] = React.useState('')
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+  const [isEditing, setIsEditing] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
   const profileQuery = useQuery({
@@ -106,13 +108,16 @@ export default function ProfilePage() {
       setHomeBase(profile.home_base ?? '')
       setBio(profile.bio ?? '')
       setTravelName(profile.travel_name ?? '')
-    } else {
+      const hasData = !!(profile.display_name || profile.travel_name || profile.bio)
+      if (!hasData) setIsEditing(true)
+    } else if (profileQuery.isFetched) {
       setDisplayName('')
       setHomeBase('')
       setBio('')
       setTravelName('')
+      setIsEditing(true)
     }
-  }, [profileQuery.data])
+  }, [profileQuery.data, profileQuery.isFetched])
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -123,9 +128,19 @@ export default function ProfilePage() {
     onSuccess: () => {
       toast.success('Profile updated')
       qc.invalidateQueries({ queryKey: ['profile', email] })
+      setIsEditing(false)
     },
     onError: () => toast.error('Could not save profile right now.'),
   })
+
+  function cancelEditing() {
+    const profile = profileQuery.data
+    setDisplayName(profile?.display_name ?? '')
+    setHomeBase(profile?.home_base ?? '')
+    setBio(profile?.bio ?? '')
+    setTravelName(profile?.travel_name ?? '')
+    setIsEditing(false)
+  }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -265,115 +280,205 @@ export default function ProfilePage() {
         )}
       </section>
 
-      <section className="content-card flex flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleAvatarChange}
-            aria-label="Upload profile picture"
-          />
-          <button
-            type="button"
-            onClick={() => avatarInputRef.current?.click()}
-            disabled={uploadingAvatar}
-            className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--border))]/50 bg-[rgb(var(--surface-muted))]/50 text-[rgb(var(--text))] transition hover:opacity-90 disabled:opacity-60"
-            title="Change profile picture"
-          >
-            {stringImageUrl(profileQuery.data?.avatar_url) ? (
-              <img
-                src={stringImageUrl(profileQuery.data?.avatar_url)!}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <UserRound className="h-8 w-8" />
-            )}
-            {uploadingAvatar && (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
-              </span>
-            )}
-            <span className="absolute bottom-0 right-0 rounded-tl bg-[rgb(var(--accent))] p-1">
-              <Camera className="h-3.5 w-3.5 text-white" />
-            </span>
-          </button>
-          <div>
-            <div className="text-sm font-semibold">Traveler card</div>
-            <div className="form-helper">Click photo to upload</div>
+      {/* Hidden file input for avatar upload */}
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleAvatarChange}
+        aria-label="Upload profile picture"
+      />
+
+      {isEditing ? (
+        /* ─── Edit Mode ─── */
+        <section className="content-card flex flex-col gap-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border transition hover:opacity-90 disabled:opacity-60"
+                style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}
+                title="Change profile picture"
+              >
+                {stringImageUrl(profileQuery.data?.avatar_url) ? (
+                  <img src={stringImageUrl(profileQuery.data?.avatar_url)!} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound className="h-8 w-8 text-[rgb(var(--muted))]" />
+                )}
+                {uploadingAvatar && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </span>
+                )}
+                <span className="absolute bottom-0 right-0 rounded-tl p-1" style={{ background: 'rgb(var(--accent))' }}>
+                  <Camera className="h-3.5 w-3.5 text-white" />
+                </span>
+              </button>
+              <div>
+                <div className="text-sm font-semibold text-[rgb(var(--text))]">Edit traveler card</div>
+                <div className="text-xs text-[rgb(var(--muted))]">Click photo to change avatar</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={cancelEditing}
+              className="rounded-lg p-2 text-[rgb(var(--muted))] transition hover:bg-[var(--glass-bg-hover)] hover:text-[rgb(var(--text))]"
+              title="Cancel editing"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-[rgb(var(--text))]">
-          <ProfileField
-            label="Display name"
-            placeholder="Adventurous Alex"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            loading={isLoading}
-          />
-          <ProfileField
-            label="Travel name"
-            placeholder="alex_travels"
-            value={travelName}
-            onChange={(e) => setTravelName(e.target.value)}
-            loading={isLoading}
-            hint="Used in Messages so friends can find you"
-          />
-          <ProfileField
-            label="Home base"
-            placeholder="Lisbon, Portugal"
-            value={homeBase}
-            onChange={(e) => setHomeBase(e.target.value)}
-            loading={isLoading}
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-[rgb(var(--text))]">
+            <ProfileField label="Display name" placeholder="Adventurous Alex" value={displayName} onChange={(e) => setDisplayName(e.target.value)} loading={isLoading} />
+            <ProfileField label="Travel name" placeholder="alex_travels" value={travelName} onChange={(e) => setTravelName(e.target.value)} loading={isLoading} hint="Visible to other travelers on the map" />
+            <ProfileField label="Home base" placeholder="Lisbon, Portugal" value={homeBase} onChange={(e) => setHomeBase(e.target.value)} loading={isLoading} />
+          </div>
 
-        <ProfileTextarea
-          label="Bio & travel style"
-          placeholder="Weekend explorer, coffee obsessed, chasing architecture and hidden record stores."
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          loading={isLoading}
-        />
+          <ProfileTextarea label="Bio & travel style" placeholder="Weekend explorer, coffee obsessed, chasing architecture and hidden record stores." value={bio} onChange={(e) => setBio(e.target.value)} loading={isLoading} />
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending}
-            className="btn btn-primary rounded-2xl px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saveMut.isPending ? (
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => saveMut.mutate()}
+              disabled={saveMut.isPending}
+              className="btn btn-primary rounded-2xl px-6 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saveMut.isPending ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving…
+                </span>
+              ) : (
+                'Save card'
+              )}
+            </Button>
+            <Button
+              onClick={cancelEditing}
+              variant="ghost"
+              className="btn btn-ghost rounded-2xl px-5 py-2 text-sm font-semibold"
+            >
+              Cancel
+            </Button>
+            <div className="flex-1" />
+            {confirmDelete ? (
               <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving…
+                <Button
+                  onClick={() => {
+                    deleteMut.mutate()
+                    setConfirmDelete(false)
+                  }}
+                  disabled={deleteMut.isPending}
+                  variant="ghost"
+                  className="btn btn-ghost rounded-2xl px-4 py-2 text-sm font-semibold bg-red-500/90 text-white hover:bg-red-600 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                >
+                  {deleteMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm delete'}
+                </Button>
+                <Button
+                  onClick={() => setConfirmDelete(false)}
+                  variant="ghost"
+                  className="btn btn-ghost rounded-2xl px-4 py-2 text-sm font-semibold"
+                >
+                  Cancel
+                </Button>
               </span>
             ) : (
-              'Save changes'
+              <Button
+                onClick={() => setConfirmDelete(true)}
+                disabled={deleteMut.isPending}
+                variant="ghost"
+                className="btn btn-ghost rounded-2xl px-5 py-2 text-sm font-semibold text-red-400 hover:text-red-500 disabled:cursor-wait disabled:opacity-60"
+              >
+                {deleteMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Remove
+              </Button>
             )}
-          </Button>
-          <Button
-            onClick={() => {
-              if (deleteMut.isPending) return
-              if (window.confirm('Delete your Smart Travel profile? Your trips remain safe.')) {
-                deleteMut.mutate()
-              }
+          </div>
+        </section>
+      ) : (
+        /* ─── Read-Only Traveler Card ─── */
+        <section className="content-card overflow-hidden animate-fade-in">
+          {/* Card header with gradient accent */}
+          <div
+            className="relative -mx-6 -mt-6 mb-6 px-6 pb-6 pt-8"
+            style={{
+              background: 'linear-gradient(135deg, rgba(var(--accent) / 0.12), rgba(var(--accent-secondary) / 0.08))',
+              borderBottom: '1px solid var(--glass-border)',
             }}
-            disabled={deleteMut.isPending}
-            variant="ghost"
-            className="btn btn-ghost rounded-2xl px-5 py-2 text-sm font-semibold disabled:cursor-wait disabled:opacity-60"
           >
-            {deleteMut.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-            Remove profile
-          </Button>
-        </div>
-      </section>
+            <div className="flex items-start gap-5">
+              {/* Avatar */}
+              <div
+                className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 shadow-lg"
+                style={{ borderColor: 'rgba(var(--accent) / 0.4)', background: 'var(--glass-bg)' }}
+              >
+                {stringImageUrl(profileQuery.data?.avatar_url) ? (
+                  <img src={stringImageUrl(profileQuery.data?.avatar_url)!} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound className="h-10 w-10 text-[rgb(var(--muted))]" />
+                )}
+              </div>
+
+              {/* Name & travel handle */}
+              <div className="min-w-0 flex-1 pt-1">
+                <h3 className="truncate text-xl font-bold text-[rgb(var(--text))]">
+                  {displayName || 'Set your name'}
+                </h3>
+                {travelName && (
+                  <p className="mt-0.5 text-sm font-medium text-[rgb(var(--accent))]">
+                    @{travelName}
+                  </p>
+                )}
+                {homeBase && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[rgb(var(--muted))]">
+                    <MapPin className="h-3 w-3" />
+                    {homeBase}
+                  </div>
+                )}
+              </div>
+
+              {/* Edit button */}
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="btn btn-ghost rounded-xl px-3 py-2 text-xs font-semibold"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit card
+              </button>
+            </div>
+          </div>
+
+          {/* Bio */}
+          {bio ? (
+            <p className="mb-5 text-sm leading-relaxed text-[rgb(var(--text))] opacity-90">
+              {bio}
+            </p>
+          ) : (
+            <p className="mb-5 text-sm italic text-[rgb(var(--muted))]">
+              No bio yet. Click &quot;Edit card&quot; to add your travel style.
+            </p>
+          )}
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+              <div className="text-lg font-bold text-[rgb(var(--accent))]">{stats.trips_count}</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-[rgb(var(--muted))]">Trips</div>
+            </div>
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+              <div className="text-lg font-bold text-[rgb(var(--accent))]">{stats.favorites_count}</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-[rgb(var(--muted))]">Saved</div>
+            </div>
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+              <div className="text-lg font-bold text-[rgb(var(--accent))]">{stats.places_in_trips_count}</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-[rgb(var(--muted))]">Places</div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

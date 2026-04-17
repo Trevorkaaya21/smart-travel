@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main className="p-6 space-y-6 animate-pulse">
+    <div className="space-y-6 animate-pulse">
       <div className="h-7 w-40 rounded bg-slate-200 dark:bg-white/10" />
       <div className="h-10 w-full rounded-2xl bg-slate-100 dark:bg-white/5" />
       <div className="grid gap-3 sm:grid-cols-2">
@@ -12,6 +12,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </main>
+    </div>
   )
 }

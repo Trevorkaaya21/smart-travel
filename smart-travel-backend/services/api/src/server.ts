@@ -433,11 +433,9 @@ async function searchPlacesGoogle(q: string, lat?: number, lng?: number, limit =
       const primaryType = types[0] || 'place'
       const categoryName = primaryType.replace(/_/g, ' ')
       
-      // Get photo URL if available
       let photoUrl: string | null = null
       if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0]
-        // Google Photos API format
         photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=800&maxHeightPx=600&key=${GOOGLE_PLACES_API_KEY}`
       }
       
@@ -2164,6 +2162,23 @@ server.post('/v1/profile/avatar', {}, async (req, reply) => {
     return { url }
   } catch (e: any) {
     return reply.code(e.statusCode || 500).send({ error: e.message || 'db_error' })
+  }
+})
+
+server.get('/v1/photo-proxy', {}, async (req, reply) => {
+  const ref = (req.query as any)?.ref as string | undefined
+  if (!ref || !GOOGLE_PLACES_API_KEY) return reply.code(404).send({ error: 'not_found' })
+  const url = `https://places.googleapis.com/v1/${ref}/media?maxWidthPx=800&maxHeightPx=600&key=${GOOGLE_PLACES_API_KEY}`
+  try {
+    const res = await fetchWithTimeout(url, { redirect: 'follow' }, 10000)
+    if (!res.ok) return reply.code(res.status).send({ error: 'photo_unavailable' })
+    const ct = res.headers.get('content-type') || 'image/jpeg'
+    const buf = Buffer.from(await res.arrayBuffer())
+    reply.header('content-type', ct)
+    reply.header('cache-control', 'public, max-age=86400')
+    return reply.send(buf)
+  } catch {
+    return reply.code(502).send({ error: 'photo_fetch_failed' })
   }
 })
 

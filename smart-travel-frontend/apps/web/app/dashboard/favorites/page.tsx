@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { HeartOff, Loader2, MapPin, Compass, Plus } from 'lucide-react'
+import { HeartOff, Loader2, MapPin, Compass, Plus, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_BASE } from '@/lib/api'
 import { stringImageUrl } from '@/lib/utils'
@@ -222,7 +222,24 @@ export default function FavoritesPage() {
       </header>
 
       <section className="content-card space-y-6">
-        {favoritesQuery.isLoading ? (
+        {favoritesQuery.isError ? (
+          <div className="content-card flex flex-col items-center gap-4 py-12 text-center">
+            <div className="rounded-full p-3" style={{ background: 'rgba(var(--error) / 0.1)' }}>
+              <AlertTriangle className="h-6 w-6 text-[rgb(var(--error))]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--text))]">Something went wrong</h3>
+              <p className="mt-1 text-sm text-[rgb(var(--muted))]">We couldn&apos;t load your favorites. Please try again.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => favoritesQuery.refetch()}
+              className="btn btn-primary"
+            >
+              Try again
+            </button>
+          </div>
+        ) : favoritesQuery.isLoading ? (
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="content-subtle h-60 animate-pulse" />

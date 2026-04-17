@@ -30,12 +30,13 @@ const securityHeaders = {
   // Content Security Policy (relaxed for development)
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://apis.google.com",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://maps.googleapis.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https: http: blob:",
-    "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://accounts.google.com https://*.googleapis.com https://*.onrender.com http://localhost:4000 http://127.0.0.1:4000 http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3001 ws://127.0.0.1:3001",
+    "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com",
+    "connect-src 'self' https://accounts.google.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.onrender.com http://localhost:4000 http://127.0.0.1:4000 http://localhost:3000 http://127.0.0.1:3000 http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3000 ws://127.0.0.1:3000 ws://localhost:3001 ws://127.0.0.1:3001",
     "frame-src 'self' https://accounts.google.com",
+    "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
