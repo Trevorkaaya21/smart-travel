@@ -2264,7 +2264,7 @@ server.get('/v1/chat/conversations', {}, async (req, reply) => {
     }
 
     const convIds = (rows ?? []).map((r: any) => r.id as string)
-    let lastMsgMap: Record<string, { at: string; sender: string }> = {}
+    const lastMsgMap: Record<string, { at: string; sender: string }> = {}
     if (convIds.length > 0) {
       for (const cid of convIds) {
         const { data: latest } = await supa
@@ -2513,7 +2513,7 @@ server.post('/v1/ml/suggest', {}, async (req, reply) => {
 })
 
 // ML Trending Destinations
-server.get('/v1/ml/trending', {}, async (_req, reply) => {
+server.get('/v1/ml/trending', {}, async (_req, _reply) => {
   const result = await proxyToML('/v1/ml/trending', 'GET')
   if (result.error) return { trending: [] }
   return result

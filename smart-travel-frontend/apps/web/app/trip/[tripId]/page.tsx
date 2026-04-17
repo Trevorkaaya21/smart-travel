@@ -246,11 +246,10 @@ function ItemRow({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}
       className="group flex gap-3 rounded-xl border p-3 transition-all duration-200 hover:shadow-[var(--shadow-md)]"
       role="listitem"
       aria-label={item.name ?? item.place_id}
-      {...{ style: { ...style, borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' } }}
     >
       {/* Category color strip */}
       <div
